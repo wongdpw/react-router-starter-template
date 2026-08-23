@@ -9,6 +9,7 @@ export default [
 	route("vote/:key", "routes/vote.$key.tsx"),
 	route("updates", "routes/updates.tsx"),
 	route("board", "routes/board.tsx"),
+	route("draw-battle", "routes/draw-battle.tsx"),
 	route("admin", "routes/admin.tsx"),
 	route("admin/login", "routes/admin.login.tsx"),
 ] satisfies RouteConfig;
