@@ -111,6 +111,9 @@ export default function RisingStars({ loaderData }: Route.ComponentProps) {
 					<a href="/board" style={navLinkStyle}>
 						Bulletin Board
 					</a>
+					<a href="/draw-battle" style={navLinkStyle}>
+						Draw Battle
+					</a>
 					<a href="/updates" style={navLinkStyle}>
 						Update Log
 					</a>

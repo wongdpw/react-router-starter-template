@@ -1,6 +1,7 @@
 const COLORS = {
 	violet: "#FACC15",
 	text: "#FFFFFF",
+	textDim: "#9CA3AF",
 	border: "#2E2E2E",
 };
 
@@ -48,6 +49,8 @@ export function BattleHeader() {
 				<a href="/rising-stars" style={navLink}>Rising Stars</a>
 				<a href="/board" style={navLink}>Bulletin Board</a>
 				<a href="/draw-battle" style={{ ...navLink, color: COLORS.violet }}>Draw Battle</a>
+				<a href="/updates" style={navLink}>Update Log</a>
+				<a href="/admin" style={{ ...navLink, color: COLORS.textDim, fontWeight: 500 }}>Sign in</a>
 			</nav>
 		</header>
 	);
