@@ -19,6 +19,7 @@ import {
 	type ServerMsg,
 	type Verdict,
 } from "../app/lib/battle-protocol";
+import { SocketHub } from "./socket-hub";
 
 interface SeatRecord {
 	pid: string;
@@ -85,9 +86,11 @@ function freshRoom(code: string): Persisted {
 export class BattleRoom extends DurableObject<Env> {
 	private room: Persisted | null = null;
 	private entries: (PackedOp[] | null)[] = [null, null];
+	private hub: SocketHub<Attachment>;
 
 	constructor(ctx: DurableObjectState, env: Env) {
 		super(ctx, env);
+		this.hub = new SocketHub<Attachment>(ctx);
 		ctx.blockConcurrencyWhile(async () => {
 			this.room = (await ctx.storage.get<Persisted>("room")) ?? null;
 			this.entries = [
@@ -149,7 +152,7 @@ export class BattleRoom extends DurableObject<Env> {
 					submitted: false,
 				};
 			} else {
-				const spectatorCount = this.sockets().filter((s) => s.attachment.role === "spectator").length;
+				const spectatorCount = this.hub.list().filter((s) => s.att.role === "spectator").length;
 				if (spectatorCount >= MAX_SPECTATORS) {
 					return new Response("Room is full", { status: 503 });
 				}
@@ -160,25 +163,15 @@ export class BattleRoom extends DurableObject<Env> {
 			room.hostPid = pid;
 		}
 
-		const pair = new WebSocketPair();
-		const server = pair[1];
-		this.ctx.acceptWebSocket(server);
 		const attachment: Attachment = { pid, role, seat };
-		server.serializeAttachment(attachment);
+		const { client, server } = this.hub.accept(attachment);
 
 		await this.save();
 
-		this.sendTo(server, attachment, { t: "welcome", you: { role, seat }, state: this.publicState(pid) });
+		this.hub.send(server, { t: "welcome", you: { role, seat }, state: this.publicState(pid) });
 		this.broadcast(server);
 
-		return new Response(null, { status: 101, webSocket: pair[0] });
-	}
-
-	private sockets(): { ws: WebSocket; attachment: Attachment }[] {
-		return this.ctx.getWebSockets().map((ws) => ({
-			ws,
-			attachment: (ws.deserializeAttachment() ?? { pid: "", role: "spectator", seat: null }) as Attachment,
-		}));
+		return new Response(null, { status: 101, webSocket: client });
 	}
 
 	override async webSocketClose(ws: WebSocket) {
@@ -192,16 +185,13 @@ export class BattleRoom extends DurableObject<Env> {
 	private async handleGone(ws: WebSocket) {
 		const room = this.room;
 		if (!room) return;
-		const attachment = ws.deserializeAttachment() as Attachment | null;
+		const attachment = this.hub.attachmentOf(ws);
 
 		// A player who drops out of the lobby frees their seat so someone
 		// else can take it. Mid-match the seat is held for reconnection.
 		if (attachment?.role === "player" && attachment.seat !== null && room.phase === "lobby") {
 			const seat = attachment.seat;
-			const stillHere = this.sockets().some(
-				(s) => s.ws !== ws && s.attachment.pid === attachment.pid
-			);
-			if (!stillHere) {
+			if (!this.hub.hasOtherSocket(attachment.pid, ws)) {
 				room.seats[seat] = null;
 				if (room.hostPid === attachment.pid) {
 					const other = room.seats.find((s) => s !== null);
@@ -225,7 +215,7 @@ export class BattleRoom extends DurableObject<Env> {
 
 		const room = this.room;
 		if (!room) return;
-		const attachment = ws.deserializeAttachment() as Attachment | null;
+		const attachment = this.hub.attachmentOf(ws);
 		if (!attachment) return;
 
 		let msg: ClientMsg;
@@ -300,15 +290,7 @@ export class BattleRoom extends DurableObject<Env> {
 				if (!isPlayer || seat === null || room.phase !== "drawing") return;
 				if (!isValidPackedOp(msg.op)) return;
 				const frame = JSON.stringify({ t: "peerStroke", seat, op: msg.op } satisfies ServerMsg);
-				for (const s of this.sockets()) {
-					if (s.attachment.role === "spectator") {
-						try {
-							s.ws.send(frame);
-						} catch {
-							/* socket already gone */
-						}
-					}
-				}
+				this.hub.broadcastRaw(frame, (att) => att.role === "spectator");
 				return;
 			}
 
@@ -437,8 +419,8 @@ export class BattleRoom extends DurableObject<Env> {
 	/** Connected spectators only — an absent spectator must not stall the vote. */
 	private connectedSpectatorPids(): string[] {
 		const seen = new Set<string>();
-		for (const s of this.sockets()) {
-			if (s.attachment.role === "spectator") seen.add(s.attachment.pid);
+		for (const s of this.hub.list()) {
+			if (s.att.role === "spectator") seen.add(s.att.pid);
 		}
 		return [...seen];
 	}
@@ -534,8 +516,7 @@ export class BattleRoom extends DurableObject<Env> {
 
 	private publicState(forPid: string): RoomState {
 		const room = this.room ?? freshRoom("?????");
-		const live = this.sockets();
-		const connectedPids = new Set(live.map((s) => s.attachment.pid));
+		const connectedPids = this.hub.connectedPids();
 
 		const players = room.seats.map((s, i) =>
 			s
@@ -583,27 +564,15 @@ export class BattleRoom extends DurableObject<Env> {
 		};
 	}
 
-	private sendTo(ws: WebSocket, attachment: Attachment, msg: ServerMsg) {
-		try {
-			ws.send(JSON.stringify(msg));
-		} catch {
-			/* socket already gone */
-		}
-	}
-
 	private sendRaw(ws: WebSocket, msg: ServerMsg) {
-		try {
-			ws.send(JSON.stringify(msg));
-		} catch {
-			/* socket already gone */
-		}
+		this.hub.send(ws, msg);
 	}
 
 	/** State is per-recipient (it carries "did you vote"), so it is built per socket. */
 	private broadcast(except?: WebSocket) {
-		for (const s of this.sockets()) {
-			if (s.ws === except) continue;
-			this.sendTo(s.ws, s.attachment, { t: "state", state: this.publicState(s.attachment.pid) });
-		}
+		this.hub.broadcastEach(
+			(att) => ({ t: "state", state: this.publicState(att.pid) }) satisfies ServerMsg,
+			except
+		);
 	}
 }

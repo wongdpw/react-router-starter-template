@@ -3,7 +3,9 @@
 	"name": "react-router-starter-template",
 	"main": "./workers/app.ts",
 	"compatibility_date": "2025-10-08",
-	"compatibility_flags": ["nodejs_compat"],
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
 	"observability": {
 		"enabled": true
 	},
@@ -22,13 +24,25 @@
 			{
 				"name": "BATTLE_ROOM",
 				"class_name": "BattleRoom"
+			},
+			{
+				"name": "GUESS_ROOM",
+				"class_name": "GuessRoom"
 			}
 		]
 	},
 	"migrations": [
 		{
 			"tag": "v1",
-			"new_sqlite_classes": ["BattleRoom"]
+			"new_sqlite_classes": [
+				"BattleRoom"
+			]
+		},
+		{
+			"tag": "v2",
+			"new_sqlite_classes": [
+				"GuessRoom"
+			]
 		}
 	]
 }

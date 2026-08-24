@@ -48,7 +48,7 @@ export function BattleHeader() {
 				<a href="/gallery" style={navLink}>Collection</a>
 				<a href="/rising-stars" style={navLink}>Rising Stars</a>
 				<a href="/board" style={navLink}>Bulletin Board</a>
-				<a href="/draw-battle" style={{ ...navLink, color: COLORS.violet }}>Draw Battle</a>
+				<a href="/games" style={{ ...navLink, color: COLORS.violet }}>Games</a>
 				<a href="/updates" style={navLink}>Update Log</a>
 				<a href="/admin" style={{ ...navLink, color: COLORS.textDim, fontWeight: 500 }}>Sign in</a>
 			</nav>

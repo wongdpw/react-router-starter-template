@@ -142,8 +142,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 					<a href="/board" style={navLinkStyle}>
 						Bulletin Board
 					</a>
-					<a href="/draw-battle" style={navLinkStyle}>
-						Draw Battle
+					<a href="/games" style={navLinkStyle}>
+						Games
 					</a>
 					<a href="/updates" style={navLinkStyle}>
 						Update Log
@@ -308,8 +308,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 						<a href="/board" style={sidebarButtonStyle(false)}>
 							Bulletin Board
 						</a>
-						<a href="/draw-battle" style={sidebarButtonStyle(false)}>
-							Draw Battle
+						<a href="/games" style={sidebarButtonStyle(false)}>
+							Games
 						</a>
 						<a href="/updates" style={sidebarButtonStyle(false)}>
 							Update Log

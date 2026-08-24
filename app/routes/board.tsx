@@ -196,7 +196,7 @@ export default function Board({ loaderData, actionData }: Route.ComponentProps) 
 					<a href="/gallery" style={navLinkStyle}>Collection</a>
 					<a href="/rising-stars" style={navLinkStyle}>Rising Stars</a>
 					<a href="/board" style={{ ...navLinkStyle, color: COLORS.violet }}>Bulletin Board</a>
-					<a href="/draw-battle" style={navLinkStyle}>Draw Battle</a>
+					<a href="/games" style={navLinkStyle}>Games</a>
 					<a href="/updates" style={navLinkStyle}>Update Log</a>
 					<a href="/admin" style={{ ...navLinkStyle, color: COLORS.textDim, fontWeight: 500 }}>Sign in</a>
 				</nav>
