@@ -1,15 +1,9 @@
 import type { Route } from "./+types/draw-battle";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-	CANVAS_H,
-	CANVAS_W,
-	DrawPad,
-	ReplayCanvas,
-	opsToDataURL,
-	type DrawPadHandle,
-	type Op,
-} from "../components/DrawPad";
+import { DrawPad, ReplayCanvas, type DrawPadHandle, type Op } from "../components/DrawPad";
 import { CATEGORY_LABELS, buildDeck, type PromptCategory } from "../lib/draw-battle-prompts";
+import { downloadComposite } from "../lib/battle-export";
+import { BattleHeader } from "../components/BattleHeader";
 
 export function meta({}: Route.MetaArgs) {
 	return [
@@ -308,7 +302,7 @@ export default function DrawBattle() {
 				}
 			`}</style>
 
-			<SiteHeader />
+			<BattleHeader />
 
 			<main style={{ maxWidth: 1180, margin: "0 auto", padding: "34px 22px 80px" }}>
 				{phase === "setup" && (
@@ -405,55 +399,6 @@ export default function DrawBattle() {
 }
 
 /* ------------------------------------------------------------------ *
- * Header (matches the rest of the site)
- * ------------------------------------------------------------------ */
-
-function SiteHeader() {
-	return (
-		<header
-			style={{
-				display: "flex",
-				alignItems: "center",
-				justifyContent: "space-between",
-				gap: 20,
-				padding: "16px 28px",
-				borderBottom: `1px solid ${COLORS.border}`,
-				position: "sticky",
-				top: 0,
-				background: "rgba(10,10,10,0.88)",
-				backdropFilter: "blur(10px)",
-				zIndex: 30,
-			}}
-		>
-			<a href="/" style={{ textDecoration: "none", color: "inherit", display: "flex", alignItems: "center", gap: 10 }}>
-				<img
-					src="/artdropspot-logo.png"
-					alt="ArtDrop Spot logo"
-					style={{ width: 30, height: 30, borderRadius: 8, objectFit: "cover" }}
-				/>
-				<span style={{ fontFamily: "'Archivo Black', sans-serif", fontSize: 17, letterSpacing: 0.3 }}>
-					ArtDrop <span style={{ color: COLORS.violet }}>Spot</span>
-				</span>
-			</a>
-			<nav className="db-nav" style={{ display: "flex", alignItems: "center", gap: 26 }}>
-				<a href="/upload" style={navLink}>Upload</a>
-				<a href="/gallery" style={navLink}>Collection</a>
-				<a href="/rising-stars" style={navLink}>Rising Stars</a>
-				<a href="/board" style={navLink}>Bulletin Board</a>
-				<a href="/draw-battle" style={{ ...navLink, color: COLORS.violet }}>Draw Battle</a>
-			</nav>
-		</header>
-	);
-}
-
-const navLink: React.CSSProperties = {
-	color: COLORS.text,
-	textDecoration: "none",
-	fontWeight: 600,
-	fontSize: 14,
-};
-
-/* ------------------------------------------------------------------ *
  * Setup
  * ------------------------------------------------------------------ */
 
@@ -527,6 +472,50 @@ function Setup({
 					to vote.
 				</p>
 			</section>
+
+			<a
+				href="/draw-battle/online"
+				style={{
+					display: "flex",
+					alignItems: "center",
+					justifyContent: "space-between",
+					gap: 18,
+					flexWrap: "wrap",
+					textDecoration: "none",
+					color: "inherit",
+					background: `linear-gradient(100deg, ${COLORS.bgPanel}, #16202b)`,
+					border: `1px solid #2b3f52`,
+					borderRadius: 16,
+					padding: "20px 24px",
+					marginBottom: 20,
+				}}
+			>
+				<div>
+					<div style={{ fontSize: 11.5, letterSpacing: "0.16em", textTransform: "uppercase", color: "#38BDF8", fontWeight: 700 }}>
+						Not in the same room?
+					</div>
+					<div style={{ fontFamily: "'Archivo Black', sans-serif", fontSize: 20, margin: "6px 0 4px" }}>
+						Play online instead
+					</div>
+					<div style={{ color: COLORS.textDim, fontSize: 13.5, lineHeight: 1.55, maxWidth: 520 }}>
+						Both of you draw at the same time from anywhere, and anyone with the room
+						link can watch live and vote on the winner.
+					</div>
+				</div>
+				<span
+					style={{
+						background: "#38BDF8",
+						color: "#0A0A0A",
+						fontWeight: 800,
+						fontSize: 14,
+						padding: "12px 24px",
+						borderRadius: 999,
+						whiteSpace: "nowrap",
+					}}
+				>
+					Create a room →
+				</span>
+			</a>
 
 			<div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 20 }}>
 				<Panel title="The players">
@@ -1196,7 +1185,7 @@ function Reveal({
 						</button>
 						<button
 							type="button"
-							onClick={() => downloadComposite(prompt, names, entries)}
+							onClick={() => downloadComposite(prompt, names, entries, PLAYER_TINTS as [string, string])}
 							style={ghostStyle}
 						>
 							Download this round
@@ -1329,7 +1318,7 @@ function Summary({
 							</div>
 							<button
 								type="button"
-								onClick={() => downloadComposite(rec.prompt, names, rec.entries)}
+								onClick={() => downloadComposite(rec.prompt, names, rec.entries, PLAYER_TINTS as [string, string])}
 								style={{ ...ghostStyle, padding: "9px 18px", fontSize: 13 }}
 							>
 								Download
@@ -1427,61 +1416,4 @@ function Confetti({ active }: { active: boolean }) {
 			style={{ position: "absolute", top: 0, left: 0, width: "100%", height: 420, pointerEvents: "none", zIndex: 5 }}
 		/>
 	);
-}
-
-/* ------------------------------------------------------------------ *
- * Export
- * ------------------------------------------------------------------ */
-
-function downloadComposite(prompt: string, names: string[], entries: [Op[], Op[]]) {
-	const GAP = 28;
-	const PAD = 40;
-	const BAR = 130;
-	const out = document.createElement("canvas");
-	out.width = CANVAS_W * 2 + GAP + PAD * 2;
-	out.height = CANVAS_H + BAR + PAD * 2 + 60;
-
-	const ctx = out.getContext("2d");
-	if (!ctx) return;
-
-	ctx.fillStyle = COLORS.bg;
-	ctx.fillRect(0, 0, out.width, out.height);
-
-	ctx.textBaseline = "top";
-	ctx.fillStyle = COLORS.violet;
-	ctx.font = "600 26px Inter, system-ui, sans-serif";
-	ctx.fillText("DRAW BATTLE · ARTDROPSPOT.COM", PAD, PAD);
-
-	ctx.fillStyle = COLORS.text;
-	ctx.font = "800 66px 'Archivo Black', Inter, system-ui, sans-serif";
-	ctx.fillText(prompt, PAD, PAD + 40);
-
-	const top = PAD + BAR;
-	const draw = (dataUrl: string, x: number, label: string, tint: string) =>
-		new Promise<void>((resolve) => {
-			const img = new Image();
-			img.onload = () => {
-				ctx.fillStyle = "#FFFFFF";
-				ctx.fillRect(x, top, CANVAS_W, CANVAS_H);
-				ctx.drawImage(img, x, top, CANVAS_W, CANVAS_H);
-				ctx.fillStyle = tint;
-				ctx.fillRect(x, top + CANVAS_H, CANVAS_W, 52);
-				ctx.fillStyle = "#0A0A0A";
-				ctx.font = "700 30px Inter, system-ui, sans-serif";
-				ctx.fillText(label, x + 20, top + CANVAS_H + 11);
-				resolve();
-			};
-			img.onerror = () => resolve();
-			img.src = dataUrl;
-		});
-
-	void Promise.all([
-		draw(opsToDataURL(entries[0]), PAD, names[0], PLAYER_TINTS[0]),
-		draw(opsToDataURL(entries[1]), PAD + CANVAS_W + GAP, names[1], PLAYER_TINTS[1]),
-	]).then(() => {
-		const a = document.createElement("a");
-		a.download = `draw-battle-${prompt.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.png`;
-		a.href = out.toDataURL("image/png");
-		a.click();
-	});
 }

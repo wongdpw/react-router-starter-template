@@ -10,6 +10,8 @@ export default [
 	route("updates", "routes/updates.tsx"),
 	route("board", "routes/board.tsx"),
 	route("draw-battle", "routes/draw-battle.tsx"),
+	route("draw-battle/online", "routes/draw-battle.online.tsx"),
+	route("draw-battle/room/:code", "routes/draw-battle.room.$code.tsx"),
 	route("admin", "routes/admin.tsx"),
 	route("admin/login", "routes/admin.login.tsx"),
 ] satisfies RouteConfig;

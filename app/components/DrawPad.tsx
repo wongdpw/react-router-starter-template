@@ -407,8 +407,14 @@ type Theme = { panel: string; border: string; text: string; dim: string; accent:
 
 export const DrawPad = forwardRef<
 	DrawPadHandle,
-	{ theme: Theme; frozen?: boolean; onStrokeCountChange?: (n: number) => void }
->(function DrawPad({ theme, frozen = false, onStrokeCountChange }, ref) {
+	{
+		theme: Theme;
+		frozen?: boolean;
+		onStrokeCountChange?: (n: number) => void;
+		/** Fires once per committed op — used to relay strokes to spectators. */
+		onCommit?: (op: Op) => void;
+	}
+>(function DrawPad({ theme, frozen = false, onStrokeCountChange, onCommit }, ref) {
 	const canvasRef = useRef<HTMLCanvasElement | null>(null);
 	const liveRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -436,6 +442,8 @@ export const DrawPad = forwardRef<
 	colorRef.current = color;
 	const sizeRef = useRef(size);
 	sizeRef.current = size;
+	const onCommitRef = useRef(onCommit);
+	onCommitRef.current = onCommit;
 
 	const syncCounts = useCallback(() => {
 		setCounts({ ops: ops.current.length, redo: redo.current.length });
@@ -538,6 +546,7 @@ export const DrawPad = forwardRef<
 			redo.current = [];
 			paint();
 			syncCounts();
+			onCommitRef.current?.(op);
 			return;
 		}
 
@@ -615,6 +624,7 @@ export const DrawPad = forwardRef<
 		redo.current = [];
 		paint();
 		syncCounts();
+		onCommitRef.current?.(op);
 	}
 
 	function onPointerUp(e: React.PointerEvent<HTMLCanvasElement>) {
