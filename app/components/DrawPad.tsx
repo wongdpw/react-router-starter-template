@@ -413,8 +413,14 @@ export const DrawPad = forwardRef<
 		onStrokeCountChange?: (n: number) => void;
 		/** Fires once per committed op — used to relay strokes to spectators. */
 		onCommit?: (op: Op) => void;
+		/**
+		 * Immutable artwork drawn underneath this player's own strokes — a
+		 * shared canvas everyone adds to. It renders but cannot be undone or
+		 * cleared, and `getOps` never returns it.
+		 */
+		baseOps?: Op[];
 	}
->(function DrawPad({ theme, frozen = false, onStrokeCountChange, onCommit }, ref) {
+>(function DrawPad({ theme, frozen = false, onStrokeCountChange, onCommit, baseOps }, ref) {
 	const canvasRef = useRef<HTMLCanvasElement | null>(null);
 	const liveRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -444,6 +450,7 @@ export const DrawPad = forwardRef<
 	sizeRef.current = size;
 	const onCommitRef = useRef(onCommit);
 	onCommitRef.current = onCommit;
+	const baseOpsRef = useRef<Op[]>(baseOps ?? []);
 
 	const syncCounts = useCallback(() => {
 		setCounts({ ops: ops.current.length, redo: redo.current.length });
@@ -467,7 +474,7 @@ export const DrawPad = forwardRef<
 		if (!base || !s) return;
 		const bctx = base.getContext("2d");
 		if (!bctx) return;
-		renderOps(bctx, ops.current, s);
+		renderOps(bctx, [...baseOpsRef.current, ...ops.current], s);
 		paint();
 	}, [paint]);
 
@@ -479,8 +486,14 @@ export const DrawPad = forwardRef<
 			bctx.fillStyle = PAPER;
 			bctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 		}
-		paint();
-	}, [paint]);
+		rebuild();
+	}, [rebuild]);
+
+	// A new shared canvas arrives (someone else drew) — repaint underneath.
+	useEffect(() => {
+		baseOpsRef.current = baseOps ?? [];
+		rebuild();
+	}, [baseOps, rebuild]);
 
 	useImperativeHandle(
 		ref,
@@ -870,15 +883,15 @@ export const DrawPad = forwardRef<
 				<div style={{ flex: 1 }} />
 
 				<div style={{ display: "flex", gap: 6 }}>
-					<ToolButton label="Undo" hint="Ctrl+Z" theme={theme} disabled={counts.ops === 0} onClick={undo}>
+					<ToolButton label="Undo" hint="Ctrl+Z" theme={theme} disabled={frozen || counts.ops === 0} onClick={undo}>
 						<path d="M9 14 4 9l5-5" />
 						<path d="M4 9h10a6 6 0 0 1 0 12h-3" />
 					</ToolButton>
-					<ToolButton label="Redo" hint="Ctrl+Shift+Z" theme={theme} disabled={counts.redo === 0} onClick={redoOne}>
+					<ToolButton label="Redo" hint="Ctrl+Shift+Z" theme={theme} disabled={frozen || counts.redo === 0} onClick={redoOne}>
 						<path d="m15 14 5-5-5-5" />
 						<path d="M20 9H10a6 6 0 0 0 0 12h3" />
 					</ToolButton>
-					<ToolButton label="Clear" theme={theme} danger disabled={counts.ops === 0} onClick={clearAll}>
+					<ToolButton label="Clear" theme={theme} danger disabled={frozen || counts.ops === 0} onClick={clearAll}>
 						<path d="M4 7h16" />
 						<path d="M9 7V5h6v2" />
 						<path d="M6 7l1 13h10l1-13" />

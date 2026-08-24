@@ -6,7 +6,8 @@ export function meta({}: Route.MetaArgs) {
 		{ title: "Games — ArtDrop Spot" },
 		{
 			name: "description",
-			content: "Drawing games you can play in the browser: Draw Battle and Guess the Drawing.",
+			content:
+				"Drawing games you can play in the browser: Draw Battle, Guess the Drawing and Fake Artist.",
 		},
 	];
 }
@@ -54,6 +55,17 @@ const GAMES: GameCard[] = [
 		href: "/guess",
 		tint: "#38BDF8",
 		art: <GuessArt />,
+	},
+	{
+		title: "Fake Artist",
+		tagline: "Social deduction",
+		blurb:
+			"Everyone gets the same secret word except one player, who only sees the category. One stroke each, then vote on who was bluffing.",
+		players: "3–10 players",
+		modes: "Online rooms",
+		href: "/fake-artist",
+		tint: "#F472B6",
+		art: <FakeArt />,
 	},
 ];
 
@@ -104,7 +116,7 @@ export default function Games() {
 					</p>
 				</section>
 
-				<div className="g-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 22 }}>
+				<div className="g-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(290px, 1fr))", gap: 22 }}>
 					{GAMES.map((game) => (
 						<a
 							key={game.title}
@@ -228,6 +240,22 @@ function GuessArt() {
 			<rect x="98" y="62" width="44" height="15" rx="7.5" fill="#2E2E2E" />
 			<text x="120" y="31" textAnchor="middle" fontSize="9" fontWeight="800" fill="#0A0A0A" fontFamily="Inter, sans-serif">
 				CAT?
+			</text>
+		</svg>
+	);
+}
+
+function FakeArt() {
+	return (
+		<svg width="150" height="92" viewBox="0 0 150 92" fill="none" aria-hidden>
+			<rect x="26" y="10" width="98" height="72" rx="7" fill="#FFFFFF" opacity="0.94" />
+			<path d="M44 62c6-18 13-26 19-26" stroke="#111" strokeWidth="3.4" strokeLinecap="round" fill="none" />
+			<path d="M63 36c6 0 12 9 15 26" stroke="#E11D48" strokeWidth="3.4" strokeLinecap="round" fill="none" />
+			<path d="M84 60c3-11 7-17 11-17" stroke="#111" strokeWidth="3.4" strokeLinecap="round" fill="none" />
+			<path d="M95 43c4 0 7 6 9 17" stroke="#111" strokeWidth="3.4" strokeLinecap="round" fill="none" />
+			<circle cx="106" cy="24" r="12" fill="#F472B6" />
+			<text x="106" y="29" textAnchor="middle" fontSize="13" fontWeight="800" fill="#0A0A0A" fontFamily="Inter, sans-serif">
+				?
 			</text>
 		</svg>
 	);

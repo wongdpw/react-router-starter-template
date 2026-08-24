@@ -28,6 +28,10 @@
 			{
 				"name": "GUESS_ROOM",
 				"class_name": "GuessRoom"
+			},
+			{
+				"name": "FAKE_ROOM",
+				"class_name": "FakeArtistRoom"
 			}
 		]
 	},
@@ -42,6 +46,12 @@
 			"tag": "v2",
 			"new_sqlite_classes": [
 				"GuessRoom"
+			]
+		},
+		{
+			"tag": "v3",
+			"new_sqlite_classes": [
+				"FakeArtistRoom"
 			]
 		}
 	]
