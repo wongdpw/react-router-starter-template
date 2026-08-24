@@ -363,6 +363,7 @@ export class FakeArtistRoom extends DurableObject<Env> {
 					p.ready = false;
 					p.votedFor = null;
 					p.strokes = 0;
+					p.score = 0;
 					p.lastDelta = 0;
 				}
 				this.canvas = [];

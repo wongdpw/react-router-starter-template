@@ -32,6 +32,10 @@
 			{
 				"name": "FAKE_ROOM",
 				"class_name": "FakeArtistRoom"
+			},
+			{
+				"name": "SQUIGGLE_ROOM",
+				"class_name": "SquiggleRoom"
 			}
 		]
 	},
@@ -52,6 +56,12 @@
 			"tag": "v3",
 			"new_sqlite_classes": [
 				"FakeArtistRoom"
+			]
+		},
+		{
+			"tag": "v4",
+			"new_sqlite_classes": [
+				"SquiggleRoom"
 			]
 		}
 	]

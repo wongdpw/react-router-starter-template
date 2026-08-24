@@ -365,6 +365,7 @@ export class GuessRoom extends DurableObject<Env> {
 				for (const p of room.players) {
 					p.ready = false;
 					p.guessedAt = null;
+					p.score = 0;
 					p.lastDelta = 0;
 				}
 				this.canvas = [];

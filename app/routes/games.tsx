@@ -35,6 +35,17 @@ interface GameCard {
 
 const GAMES: GameCard[] = [
 	{
+		title: "Daily Prompt",
+		tagline: "New every day",
+		blurb:
+			"One prompt for everybody, changing at midnight. Draw it in your browser, then vote on everyone else's take before the day runs out.",
+		players: "Play alone",
+		modes: "No room needed",
+		href: "/daily",
+		tint: "#FB923C",
+		art: <DailyArt />,
+	},
+	{
 		title: "Draw Battle",
 		tagline: "Head to head",
 		blurb:
@@ -66,6 +77,17 @@ const GAMES: GameCard[] = [
 		href: "/fake-artist",
 		tint: "#F472B6",
 		art: <FakeArt />,
+	},
+	{
+		title: "Squiggle Challenge",
+		tagline: "Everyone at once",
+		blurb:
+			"Everybody starts from the exact same random squiggle and turns it into something. No turns, no waiting — then vote on the best one.",
+		players: "2–8 players",
+		modes: "Online rooms",
+		href: "/squiggle",
+		tint: "#A3E635",
+		art: <SquiggleArt />,
 	},
 ];
 
@@ -257,6 +279,36 @@ function FakeArt() {
 			<text x="106" y="29" textAnchor="middle" fontSize="13" fontWeight="800" fill="#0A0A0A" fontFamily="Inter, sans-serif">
 				?
 			</text>
+		</svg>
+	);
+}
+
+function SquiggleArt() {
+	return (
+		<svg width="150" height="92" viewBox="0 0 150 92" fill="none" aria-hidden>
+			<rect x="8" y="12" width="60" height="68" rx="7" fill="#FFFFFF" opacity="0.94" />
+			<rect x="82" y="12" width="60" height="68" rx="7" fill="#FFFFFF" opacity="0.94" />
+			<path d="M22 56c8-20 20-4 30-24" stroke="#A3E635" strokeWidth="4" strokeLinecap="round" fill="none" />
+			<path d="M96 56c8-20 20-4 30-24" stroke="#A3E635" strokeWidth="4" strokeLinecap="round" fill="none" />
+			<circle cx="30" cy="40" r="5" stroke="#111" strokeWidth="2.6" fill="none" />
+			<path d="M22 66h30" stroke="#111" strokeWidth="2.6" strokeLinecap="round" />
+			<path d="M100 66c6-10 14-10 20 0" stroke="#111" strokeWidth="2.6" strokeLinecap="round" fill="none" />
+			<path d="M112 22l5 9h-10l5-9Z" stroke="#111" strokeWidth="2.6" strokeLinejoin="round" fill="none" />
+		</svg>
+	);
+}
+
+function DailyArt() {
+	return (
+		<svg width="150" height="92" viewBox="0 0 150 92" fill="none" aria-hidden>
+			<rect x="20" y="8" width="110" height="76" rx="8" fill="#FFFFFF" opacity="0.94" />
+			<rect x="20" y="8" width="110" height="18" rx="8" fill="#FB923C" />
+			<rect x="20" y="20" width="110" height="6" fill="#FB923C" />
+			<circle cx="42" cy="17" r="3" fill="#0A0A0A" opacity="0.5" />
+			<circle cx="108" cy="17" r="3" fill="#0A0A0A" opacity="0.5" />
+			<path d="M44 68c8-24 18-32 24-32s10 14 12 32" stroke="#111" strokeWidth="3.4" strokeLinecap="round" fill="none" />
+			<circle cx="66" cy="34" r="6" stroke="#111" strokeWidth="3.4" fill="none" />
+			<path d="M92 44l4 8 4-8" stroke="#FB923C" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" fill="none" />
 		</svg>
 	);
 }
