@@ -5,9 +5,17 @@ import { BattleHeader } from "../components/BattleHeader";
 import VoteButton from "../components/VoteButton";
 import { DrawPad, opsToDataURL, type DrawPadHandle } from "../components/DrawPad";
 import { formatDay, msUntilNextPrompt, previousKey, promptFor, todayKey } from "../lib/daily-prompts";
+import { DAILY_PROMPT_ENABLED } from "../lib/feature-flags";
 
 export function meta({ data }: Route.MetaArgs) {
-	const prompt = data?.prompt ?? "Today's prompt";
+	const prompt = data && "prompt" in data ? data.prompt : null;
+	if (!prompt) {
+		return [
+			{ title: "Daily Prompt — coming soon — ArtDrop Spot" },
+			{ name: "description", content: "A new drawing prompt every day. Still being built." },
+			{ name: "robots", content: "noindex" },
+		];
+	}
 	return [
 		{ title: `Daily Prompt: ${prompt} — ArtDrop Spot` },
 		{
@@ -50,6 +58,9 @@ async function listDay(bucket: R2Bucket, day: string): Promise<Entry[]> {
 }
 
 export async function loader({ request, context }: Route.LoaderArgs) {
+	// Held back for now. Returning early also avoids the R2 reads entirely.
+	if (!DAILY_PROMPT_ENABLED) return { enabled: false as const };
+
 	const bucket = context.cloudflare.env.ART_BUCKET;
 	const day = todayKey();
 	const yesterday = previousKey(day);
@@ -61,6 +72,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 	]);
 
 	return {
+		enabled: true as const,
 		day,
 		prompt: promptFor(day),
 		entries,
@@ -76,6 +88,10 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
+	if (!DAILY_PROMPT_ENABLED) {
+		return { error: "The Daily Prompt isn't open yet." };
+	}
+
 	const bucket = context.cloudflare.env.ART_BUCKET;
 	const day = todayKey();
 	const ip = clientIp(request);
@@ -141,8 +157,15 @@ const PAD_THEME = {
 
 const NAME_KEY = "drawBattleName";
 
+type DailyGameData = Extract<Awaited<ReturnType<typeof loader>>, { enabled: true }>;
+
 export default function Daily({ loaderData }: Route.ComponentProps) {
-	const { day, prompt, entries, alreadySubmitted, msLeft, yesterday } = loaderData;
+	if (!loaderData.enabled) return <ComingSoon />;
+	return <DailyGame data={loaderData} />;
+}
+
+function DailyGame({ data }: { data: DailyGameData }) {
+	const { day, prompt, entries, alreadySubmitted, msLeft, yesterday } = data;
 	const fetcher = useFetcher<typeof action>();
 	const revalidator = useRevalidator();
 	const padRef = useRef<DrawPadHandle>(null);
@@ -434,6 +457,112 @@ export default function Daily({ loaderData }: Route.ComponentProps) {
 						</div>
 					</section>
 				)}
+			</main>
+		</div>
+	);
+}
+
+/** Stand-in while the Daily Prompt is held back. */
+function ComingSoon() {
+	return (
+		<div style={{ fontFamily: "'Inter', sans-serif", background: COLORS.bg, color: COLORS.text, minHeight: "100vh" }}>
+			<link
+				rel="stylesheet"
+				href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700&display=swap"
+			/>
+			<style>{`
+				@media (max-width: 900px) {
+					.db-nav { flex-wrap: wrap !important; gap: 12px 18px !important; justify-content: center !important; }
+				}
+			`}</style>
+
+			<BattleHeader />
+
+			<main style={{ maxWidth: 720, margin: "0 auto", padding: "34px 22px 90px" }}>
+				<div style={{ marginBottom: 22 }}>
+					<a href="/games" style={{ color: COLORS.textDim, textDecoration: "none", fontSize: 13.5, fontWeight: 600 }}>
+						← All games
+					</a>
+				</div>
+
+				<section
+					style={{
+						background: COLORS.bgPanel,
+						border: `1px solid ${COLORS.border}`,
+						borderRadius: 20,
+						padding: "56px 34px",
+						textAlign: "center",
+					}}
+				>
+					<span
+						style={{
+							display: "inline-block",
+							background: "transparent",
+							border: `1px solid ${COLORS.orange}`,
+							color: COLORS.orange,
+							borderRadius: 999,
+							padding: "6px 15px",
+							fontSize: 11,
+							fontWeight: 800,
+							letterSpacing: "0.14em",
+							textTransform: "uppercase",
+							marginBottom: 20,
+						}}
+					>
+						In development
+					</span>
+
+					<h1
+						style={{
+							fontFamily: "'Archivo Black', sans-serif",
+							fontSize: "clamp(28px, 5vw, 46px)",
+							lineHeight: 1.08,
+							margin: "0 0 16px",
+						}}
+					>
+						DAILY PROMPT IS
+						<br />
+						STILL BEING BUILT
+					</h1>
+
+					<p style={{ color: COLORS.textDim, fontSize: 15.5, lineHeight: 1.7, maxWidth: 460, margin: "0 auto 30px" }}>
+						One prompt for everybody, changing at midnight — draw it in your browser,
+						then vote on everyone else's. It isn't open yet, but the other games are
+						ready to play right now.
+					</p>
+
+					<div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+						<a
+							href="/games"
+							style={{
+								background: COLORS.orange,
+								color: "#0A0A0A",
+								textDecoration: "none",
+								fontFamily: "'Archivo Black', sans-serif",
+								fontSize: 15,
+								padding: "14px 30px",
+								borderRadius: 999,
+							}}
+						>
+							BROWSE THE GAMES
+						</a>
+						<a
+							href="/board"
+							style={{
+								background: "transparent",
+								border: `1px solid ${COLORS.border}`,
+								color: COLORS.text,
+								textDecoration: "none",
+								fontWeight: 600,
+								fontSize: 14,
+								padding: "14px 26px",
+								borderRadius: 999,
+							}}
+						>
+							Tell us what you want from it
+						</a>
+					</div>
+				</section>
 			</main>
 		</div>
 	);

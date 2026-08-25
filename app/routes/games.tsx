@@ -1,5 +1,6 @@
 import type { Route } from "./+types/games";
 import { BattleHeader } from "../components/BattleHeader";
+import { DAILY_PROMPT_ENABLED } from "../lib/feature-flags";
 
 export function meta({}: Route.MetaArgs) {
 	return [
@@ -31,6 +32,8 @@ interface GameCard {
 	href: string;
 	tint: string;
 	art: React.ReactNode;
+	/** Shown on the hub but not yet playable. */
+	comingSoon?: boolean;
 }
 
 const GAMES: GameCard[] = [
@@ -44,6 +47,7 @@ const GAMES: GameCard[] = [
 		href: "/daily",
 		tint: "#FB923C",
 		art: <DailyArt />,
+		comingSoon: !DAILY_PROMPT_ENABLED,
 	},
 	{
 		title: "Draw Battle",
@@ -142,8 +146,9 @@ export default function Games() {
 					{GAMES.map((game) => (
 						<a
 							key={game.title}
-							href={game.href}
-							className="g-card"
+							href={game.comingSoon ? undefined : game.href}
+							className={game.comingSoon ? undefined : "g-card"}
+							aria-disabled={game.comingSoon || undefined}
 							style={{
 								display: "flex",
 								flexDirection: "column",
@@ -153,10 +158,13 @@ export default function Games() {
 								border: `1px solid ${COLORS.border}`,
 								borderRadius: 20,
 								overflow: "hidden",
+								cursor: game.comingSoon ? "default" : "pointer",
+								opacity: game.comingSoon ? 0.62 : 1,
 							}}
 						>
 							<div
 								style={{
+									position: "relative",
 									height: 150,
 									background: `linear-gradient(150deg, ${game.tint}22, ${COLORS.bgPanel} 70%)`,
 									borderBottom: `1px solid ${COLORS.border}`,
@@ -165,6 +173,26 @@ export default function Games() {
 								}}
 							>
 								{game.art}
+								{game.comingSoon && (
+									<span
+										style={{
+											position: "absolute",
+											top: 12,
+											right: 12,
+											background: COLORS.bgPanel,
+											border: `1px solid ${game.tint}`,
+											color: game.tint,
+											borderRadius: 999,
+											padding: "5px 12px",
+											fontSize: 10.5,
+											fontWeight: 800,
+											letterSpacing: "0.12em",
+											textTransform: "uppercase",
+										}}
+									>
+										In development
+									</span>
+								)}
 							</div>
 							<div style={{ padding: 26, display: "flex", flexDirection: "column", flex: 1 }}>
 								<span
@@ -191,15 +219,16 @@ export default function Games() {
 								<span
 									style={{
 										alignSelf: "flex-start",
-										background: game.tint,
-										color: "#0A0A0A",
+										background: game.comingSoon ? "transparent" : game.tint,
+										border: game.comingSoon ? `1px solid ${COLORS.border}` : "1px solid transparent",
+										color: game.comingSoon ? COLORS.textDim : "#0A0A0A",
 										fontWeight: 800,
 										fontSize: 14,
 										padding: "12px 26px",
 										borderRadius: 999,
 									}}
 								>
-									Play →
+									{game.comingSoon ? "Coming soon" : "Play →"}
 								</span>
 							</div>
 						</a>
