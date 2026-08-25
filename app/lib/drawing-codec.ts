@@ -1,4 +1,5 @@
 import type { BrushTool, Op } from "../components/DrawPad";
+import { ICON_IDS } from "./icons";
 
 /**
  * Compact wire format for drawings, shared by every game that streams or
@@ -19,12 +20,24 @@ const TOOLS: BrushTool[] = ["pen", "marker", "pencil", "eraser"];
 export type PackedStroke = [0, number, string, number, number[]];
 /** [1, color, x, y] */
 export type PackedFill = [1, string, number, number];
-export type PackedOp = PackedStroke | PackedFill;
+/** [2, iconIndex, x, y, scale x100, rotation in tenths of a degree] */
+export type PackedIcon = [2, number, number, number, number, number];
+export type PackedOp = PackedStroke | PackedFill | PackedIcon;
 
 export function packOps(ops: Op[]): PackedOp[] {
 	return ops.map((op): PackedOp => {
 		if (op.kind === "fill") {
 			return [1, op.color, Math.round(op.x), Math.round(op.y)];
+		}
+		if (op.kind === "icon") {
+			return [
+				2,
+				Math.max(0, ICON_IDS.indexOf(op.icon)),
+				Math.round(op.x),
+				Math.round(op.y),
+				Math.round(op.scale * 100),
+				Math.round((op.rotation * 180) / Math.PI * 10),
+			];
 		}
 		const flat: number[] = [];
 		for (const pt of op.pts) {
@@ -39,6 +52,17 @@ export function unpackOps(packed: PackedOp[]): Op[] {
 	for (const p of packed) {
 		if (p[0] === 1) {
 			out.push({ kind: "fill", color: p[1], x: p[2], y: p[3] });
+			continue;
+		}
+		if (p[0] === 2) {
+			out.push({
+				kind: "icon",
+				icon: ICON_IDS[p[1]] ?? ICON_IDS[0],
+				x: p[2],
+				y: p[3],
+				scale: p[4] / 100,
+				rotation: (p[5] / 10) * (Math.PI / 180),
+			});
 			continue;
 		}
 		const flat = p[4];
@@ -68,6 +92,21 @@ export function isValidPackedOp(value: unknown): value is PackedOp {
 			HEX.test(value[1]) &&
 			Number.isFinite(value[2]) &&
 			Number.isFinite(value[3])
+		);
+	}
+
+	if (value[0] === 2) {
+		return (
+			value.length === 6 &&
+			Number.isInteger(value[1]) &&
+			value[1] >= 0 &&
+			value[1] < ICON_IDS.length &&
+			Number.isFinite(value[2]) &&
+			Number.isFinite(value[3]) &&
+			Number.isFinite(value[4]) &&
+			value[4] > 0 &&
+			value[4] <= 1500 &&
+			Number.isFinite(value[5])
 		);
 	}
 

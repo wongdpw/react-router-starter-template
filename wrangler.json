@@ -36,6 +36,10 @@
 			{
 				"name": "SQUIGGLE_ROOM",
 				"class_name": "SquiggleRoom"
+			},
+			{
+				"name": "DOODLE_ROOM",
+				"class_name": "DoodleRoom"
 			}
 		]
 	},
@@ -62,6 +66,12 @@
 			"tag": "v4",
 			"new_sqlite_classes": [
 				"SquiggleRoom"
+			]
+		},
+		{
+			"tag": "v5",
+			"new_sqlite_classes": [
+				"DoodleRoom"
 			]
 		}
 	]

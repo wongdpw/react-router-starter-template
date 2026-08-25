@@ -18,6 +18,8 @@ export default [
 	route("fake-artist/room/:code", "routes/fake-artist.room.$code.tsx"),
 	route("squiggle", "routes/squiggle.tsx"),
 	route("squiggle/room/:code", "routes/squiggle.room.$code.tsx"),
+	route("doodle", "routes/doodle.tsx"),
+	route("doodle/room/:code", "routes/doodle.room.$code.tsx"),
 	route("draw-battle/online", "routes/draw-battle.online.tsx"),
 	route("draw-battle/room/:code", "routes/draw-battle.room.$code.tsx"),
 	route("admin", "routes/admin.tsx"),

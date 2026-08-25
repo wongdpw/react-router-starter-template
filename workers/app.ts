@@ -5,6 +5,7 @@ export { BattleRoom } from "./battle-room";
 export { GuessRoom } from "./guess-room";
 export { FakeArtistRoom } from "./fake-artist-room";
 export { SquiggleRoom } from "./squiggle-room";
+export { DoodleRoom } from "./doodle-room";
 
 declare module "react-router" {
 	export interface AppLoadContext {
@@ -24,6 +25,7 @@ const BATTLE_WS = /^\/api\/battle\/([A-Za-z0-9]+)\/ws$/;
 const GUESS_WS = /^\/api\/guess\/([A-Za-z0-9]+)\/ws$/;
 const FAKE_WS = /^\/api\/fake\/([A-Za-z0-9]+)\/ws$/;
 const SQUIGGLE_WS = /^\/api\/squiggle\/([A-Za-z0-9]+)\/ws$/;
+const DOODLE_WS = /^\/api\/doodle\/([A-Za-z0-9]+)\/ws$/;
 
 export default {
 	fetch(request, env, ctx) {
@@ -35,14 +37,23 @@ export default {
 		const guess = GUESS_WS.exec(url.pathname);
 		const fake = FAKE_WS.exec(url.pathname);
 		const squiggle = SQUIGGLE_WS.exec(url.pathname);
-		const match = battle ?? guess ?? fake ?? squiggle;
+		const doodle = DOODLE_WS.exec(url.pathname);
+		const match = battle ?? guess ?? fake ?? squiggle ?? doodle;
 		if (match) {
 			const code = match[1].toUpperCase();
 			if (!isValidRoomCode(code)) {
 				return new Response("Invalid room code", { status: 400 });
 			}
 			url.searchParams.set("code", code);
-			const ns = battle ? env.BATTLE_ROOM : guess ? env.GUESS_ROOM : fake ? env.FAKE_ROOM : env.SQUIGGLE_ROOM;
+			const ns = battle
+				? env.BATTLE_ROOM
+				: guess
+					? env.GUESS_ROOM
+					: fake
+						? env.FAKE_ROOM
+						: squiggle
+							? env.SQUIGGLE_ROOM
+							: env.DOODLE_ROOM;
 			return ns.get(ns.idFromName(code)).fetch(new Request(url, request));
 		}
 

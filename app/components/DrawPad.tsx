@@ -1,3 +1,4 @@
+import { ICON_BASE_SIZE, ICONS, drawIcon, iconSvgChildren } from "../lib/icons";
 import {
 	forwardRef,
 	useCallback,
@@ -17,13 +18,14 @@ import {
  * ------------------------------------------------------------------ */
 
 export type BrushTool = "pen" | "marker" | "pencil" | "eraser";
-export type Tool = BrushTool | "fill";
+export type Tool = BrushTool | "fill" | "icon";
 
 export type StrokePoint = { x: number; y: number; p: number };
 
 export type Op =
 	| { kind: "stroke"; tool: BrushTool; color: string; size: number; pts: StrokePoint[] }
-	| { kind: "fill"; color: string; x: number; y: number };
+	| { kind: "fill"; color: string; x: number; y: number }
+	| { kind: "icon"; icon: string; x: number; y: number; scale: number; rotation: number };
 
 export const CANVAS_W = 1400;
 export const CANVAS_H = 1000;
@@ -259,6 +261,11 @@ function commitOp(ctx: CanvasRenderingContext2D, op: Op, scratch: HTMLCanvasElem
 		return;
 	}
 
+	if (op.kind === "icon") {
+		drawIcon(ctx, op.icon, op.x, op.y, op.scale, op.rotation);
+		return;
+	}
+
 	const alpha = BRUSH_ALPHA[op.tool];
 	if (alpha >= 1) {
 		createStrokeRenderer(ctx, op).advanceTo(op.pts.length);
@@ -295,7 +302,7 @@ export function renderOps(ctx: CanvasRenderingContext2D, ops: Op[], scratch: HTM
 
 /** Total points across all ops; fills count as a chunk of "work". */
 function opWeight(ops: Op[]): number {
-	return ops.reduce((sum, op) => sum + (op.kind === "fill" ? 12 : op.pts.length), 0);
+	return ops.reduce((sum, op) => sum + (op.kind === "stroke" ? op.pts.length : 12), 0);
 }
 
 export function ReplayCanvas({
@@ -348,7 +355,7 @@ export function ReplayCanvas({
 
 			for (const op of ops) {
 				if (budget <= 0) break;
-				const weight = op.kind === "fill" ? 12 : op.pts.length;
+				const weight = op.kind === "stroke" ? op.pts.length : 12;
 				if (budget >= weight) {
 					commitOp(ctx, op, scratch);
 					budget -= weight;
@@ -419,8 +426,13 @@ export const DrawPad = forwardRef<
 		 * cleared, and `getOps` never returns it.
 		 */
 		baseOps?: Op[];
+		/**
+		 * Opt-in stamp tool. Off by default: in a guessing game a ready-made
+		 * icon would hand over the answer.
+		 */
+		icons?: boolean;
 	}
->(function DrawPad({ theme, frozen = false, onStrokeCountChange, onCommit, baseOps }, ref) {
+>(function DrawPad({ theme, frozen = false, onStrokeCountChange, onCommit, baseOps, icons = false }, ref) {
 	const canvasRef = useRef<HTMLCanvasElement | null>(null);
 	const liveRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -436,6 +448,7 @@ export const DrawPad = forwardRef<
 	const pointerId = useRef<number | null>(null);
 
 	const [tool, setTool] = useState<Tool>("pen");
+	const [activeIcon, setActiveIcon] = useState<string>(ICONS[0].id);
 	const [color, setColor] = useState(PALETTE[0]);
 	const [size, setSize] = useState(8);
 	const [counts, setCounts] = useState({ ops: 0, redo: 0 });
@@ -450,6 +463,12 @@ export const DrawPad = forwardRef<
 	sizeRef.current = size;
 	const onCommitRef = useRef(onCommit);
 	onCommitRef.current = onCommit;
+	const iconsRef = useRef(icons);
+	iconsRef.current = icons;
+	const activeIconRef = useRef(activeIcon);
+	activeIconRef.current = activeIcon;
+	/** In-progress icon placement: centre plus the drag-derived size and angle. */
+	const placing = useRef<{ x: number; y: number; scale: number; rotation: number } | null>(null);
 	const baseOpsRef = useRef<Op[]>(baseOps ?? []);
 
 	const syncCounts = useCallback(() => {
@@ -511,6 +530,48 @@ export const DrawPad = forwardRef<
 		[rebuild, syncCounts]
 	);
 
+	/** Redraws the floating preview of the icon about to be stamped. */
+	function paintPlacement() {
+		const spot = placing.current;
+		const live = liveRef.current;
+		const lctx = live?.getContext("2d");
+		if (!spot || !lctx || !live) return;
+		lctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+		live.style.opacity = "1";
+		drawIcon(lctx, activeIconRef.current, spot.x, spot.y, spot.scale, spot.rotation);
+	}
+
+	function commitPlacement() {
+		const spot = placing.current;
+		placing.current = null;
+		pointerId.current = null;
+
+		const lctx = liveRef.current?.getContext("2d");
+		if (lctx) lctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+		if (!spot) return;
+
+		const base = baseLayer.current;
+		const s = scratch.current;
+		if (!base || !s) return;
+		const bctx = base.getContext("2d");
+		if (!bctx) return;
+
+		const op: Op = {
+			kind: "icon",
+			icon: activeIconRef.current,
+			x: spot.x,
+			y: spot.y,
+			scale: spot.scale,
+			rotation: spot.rotation,
+		};
+		commitOp(bctx, op, s);
+		ops.current.push(op);
+		redo.current = [];
+		paint();
+		syncCounts();
+		onCommitRef.current?.(op);
+	}
+
 	function toCanvas(e: React.PointerEvent<HTMLCanvasElement>) {
 		const canvas = canvasRef.current;
 		if (!canvas) return { x: 0, y: 0 };
@@ -563,6 +624,14 @@ export const DrawPad = forwardRef<
 			return;
 		}
 
+		if (toolRef.current === "icon") {
+			e.currentTarget.setPointerCapture(e.pointerId);
+			pointerId.current = e.pointerId;
+			placing.current = { x, y, scale: 1, rotation: 0 };
+			paintPlacement();
+			return;
+		}
+
 		e.currentTarget.setPointerCapture(e.pointerId);
 		pointerId.current = e.pointerId;
 		lastMove.current = null;
@@ -587,6 +656,18 @@ export const DrawPad = forwardRef<
 	}
 
 	function onPointerMove(e: React.PointerEvent<HTMLCanvasElement>) {
+		// Dragging away from the drop point sizes and rotates the icon.
+		if (placing.current && pointerId.current === e.pointerId) {
+			const p = toCanvas(e);
+			const dx = p.x - placing.current.x;
+			const dy = p.y - placing.current.y;
+			const dist = Math.hypot(dx, dy);
+			placing.current.scale = dist < 14 ? 1 : Math.max(0.35, Math.min(3, dist / 80));
+			if (dist > 14) placing.current.rotation = Math.atan2(dy, dx);
+			paintPlacement();
+			return;
+		}
+
 		const op = current.current;
 		if (!op || pointerId.current !== e.pointerId) return;
 		e.preventDefault();
@@ -642,6 +723,10 @@ export const DrawPad = forwardRef<
 
 	function onPointerUp(e: React.PointerEvent<HTMLCanvasElement>) {
 		if (pointerId.current !== e.pointerId) return;
+		if (placing.current) {
+			commitPlacement();
+			return;
+		}
 		endStroke();
 	}
 
@@ -689,8 +774,9 @@ export const DrawPad = forwardRef<
 			}
 			if (meta) return;
 
-			const map: Record<string, Tool> = { b: "pen", m: "marker", p: "pencil", e: "eraser", g: "fill" };
+			const map: Record<string, Tool> = { b: "pen", m: "marker", p: "pencil", e: "eraser", g: "fill", i: "icon" };
 			const next = map[e.key.toLowerCase()];
+			if (next === "icon" && !iconsRef.current) return;
 			if (next) {
 				e.preventDefault();
 				setTool(next);
@@ -710,6 +796,9 @@ export const DrawPad = forwardRef<
 	}, [undo, redoOne]);
 
 	const swatchColor = tool === "eraser" ? PAPER : color;
+	/** Fill and icon aren't brushes, so the size preview falls back to the pen. */
+	const previewBrush: BrushTool = tool === "fill" || tool === "icon" ? "pen" : tool;
+	const previewWidth = Math.max(3, Math.min(26, size * BRUSH_WIDTH_SCALE[previewBrush] * 0.5));
 
 	return (
 		<div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -780,6 +869,11 @@ export const DrawPad = forwardRef<
 						<path d="M8 19h11" strokeWidth="2.2" />
 						<path d="M6 16.5 13 9.5a2 2 0 0 1 2.8 0l2.7 2.7a2 2 0 0 1 0 2.8L14.5 19h-4L6 16.5Z" />
 					</ToolButton>
+					{icons && (
+						<ToolButton label="Icons" hint="I" active={tool === "icon"} theme={theme} onClick={() => setTool("icon")}>
+							<path d="M12 3.5 14.6 9l6.1.9-4.4 4.3 1 6-5.3-2.8-5.3 2.8 1-6L3.3 9.9 9.4 9 12 3.5Z" />
+						</ToolButton>
+					)}
 					<ToolButton label="Fill" hint="G" active={tool === "fill"} theme={theme} onClick={() => setTool("fill")}>
 						<path d="M11 3.5 4.8 9.7a1.6 1.6 0 0 0 0 2.3l5.2 5.2a1.6 1.6 0 0 0 2.3 0l5.4-5.4L11 3.5Z" />
 						<path d="M20 15.5s1.7 2 1.7 3.1A1.7 1.7 0 0 1 20 20.3a1.7 1.7 0 0 1-1.7-1.7c0-1.1 1.7-3.1 1.7-3.1Z" />
@@ -808,9 +902,9 @@ export const DrawPad = forwardRef<
 								borderRadius: "50%",
 								background: swatchColor,
 								border: swatchColor === PAPER ? "1px solid #D4D4D8" : "none",
-								width: Math.max(3, Math.min(26, size * BRUSH_WIDTH_SCALE[tool === "fill" ? "pen" : tool] * 0.5)),
-								height: Math.max(3, Math.min(26, size * BRUSH_WIDTH_SCALE[tool === "fill" ? "pen" : tool] * 0.5)),
-								opacity: tool === "fill" ? 1 : BRUSH_ALPHA[tool],
+								width: previewWidth,
+								height: previewWidth,
+								opacity: BRUSH_ALPHA[previewBrush],
 							}}
 						/>
 					</div>
@@ -898,6 +992,58 @@ export const DrawPad = forwardRef<
 					</ToolButton>
 				</div>
 			</div>
+
+			{icons && tool === "icon" && (
+				<div
+					style={{
+						display: "flex",
+						alignItems: "center",
+						gap: 8,
+						overflowX: "auto",
+						background: theme.panel,
+						border: `1px solid ${theme.border}`,
+						borderRadius: 14,
+						padding: "10px 14px",
+					}}
+				>
+					<span style={{ fontSize: 11.5, color: theme.dim, whiteSpace: "nowrap", marginRight: 4 }}>
+						Click to stamp · drag to size &amp; spin
+					</span>
+					{ICONS.map((ic) => {
+						const on = ic.id === activeIcon;
+						return (
+							<button
+								key={ic.id}
+								type="button"
+								title={ic.name}
+								aria-label={ic.name}
+								aria-pressed={on}
+								onClick={() => setActiveIcon(ic.id)}
+								style={{
+									flexShrink: 0,
+									width: 40,
+									height: 40,
+									display: "grid",
+									placeItems: "center",
+									borderRadius: 10,
+									cursor: "pointer",
+									background: on ? theme.accent : "transparent",
+									border: `1px solid ${on ? theme.accent : theme.border}`,
+									padding: 0,
+								}}
+							>
+								<svg
+									width="26"
+									height="26"
+									viewBox="0 0 100 100"
+									aria-hidden
+									dangerouslySetInnerHTML={{ __html: iconSvgChildren(ic) }}
+								/>
+							</button>
+						);
+					})}
+				</div>
+			)}
 		</div>
 	);
 });

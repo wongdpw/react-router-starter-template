@@ -93,6 +93,17 @@ const GAMES: GameCard[] = [
 		tint: "#A3E635",
 		art: <SquiggleArt />,
 	},
+	{
+		title: "Doodle Board",
+		tagline: "No winner",
+		blurb:
+			"Take turns adding whatever you like to one shared picture — draw it, or stamp an icon. No prompt, no score, just something the whole group made.",
+		players: "2–10 people",
+		modes: "Online rooms",
+		href: "/doodle",
+		tint: "#2DD4BF",
+		art: <DoodleArt />,
+	},
 ];
 
 export default function Games() {
@@ -338,6 +349,19 @@ function DailyArt() {
 			<path d="M44 68c8-24 18-32 24-32s10 14 12 32" stroke="#111" strokeWidth="3.4" strokeLinecap="round" fill="none" />
 			<circle cx="66" cy="34" r="6" stroke="#111" strokeWidth="3.4" fill="none" />
 			<path d="M92 44l4 8 4-8" stroke="#FB923C" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+		</svg>
+	);
+}
+
+function DoodleArt() {
+	return (
+		<svg width="150" height="92" viewBox="0 0 150 92" fill="none" aria-hidden>
+			<rect x="22" y="8" width="106" height="76" rx="8" fill="#FFFFFF" opacity="0.94" />
+			<path d="M34 62c10-22 18-6 26-24" stroke="#2DD4BF" strokeWidth="4" strokeLinecap="round" fill="none" />
+			<path d="M64 66c6-14 14-6 18-18" stroke="#F472B6" strokeWidth="4" strokeLinecap="round" fill="none" />
+			<circle cx="98" cy="34" r="9" fill="#FACC15" />
+			<path d="M92 62l6-10 6 10Z" fill="#38BDF8" />
+			<circle cx="46" cy="26" r="6" fill="#FB923C" />
 		</svg>
 	);
 }
