@@ -28,6 +28,8 @@ const COLORS = {
 };
 
 const NAME_KEY = "drawBattleName";
+/** How many icons to show on the landing page before summarising the rest. */
+const PREVIEW_COUNT = 24;
 
 export default function DoodleLanding() {
 	const navigate = useNavigate();
@@ -143,7 +145,7 @@ export default function DoodleLanding() {
 						Icons you can stamp
 					</div>
 					<div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-						{ICONS.map((ic) => (
+						{ICONS.slice(0, PREVIEW_COUNT).map((ic) => (
 							<span
 								key={ic.id}
 								title={ic.name}
@@ -160,9 +162,28 @@ export default function DoodleLanding() {
 								<svg width="28" height="28" viewBox="0 0 100 100" aria-hidden dangerouslySetInnerHTML={{ __html: iconSvgChildren(ic) }} />
 							</span>
 						))}
+						{ICONS.length > PREVIEW_COUNT && (
+							<span
+								style={{
+									minWidth: 44,
+									height: 44,
+									padding: "0 12px",
+									display: "grid",
+									placeItems: "center",
+									borderRadius: 11,
+									background: COLORS.bg,
+									border: `1px solid ${COLORS.border}`,
+									color: COLORS.textDim,
+									fontSize: 12.5,
+									fontWeight: 700,
+								}}
+							>
+								+{ICONS.length - PREVIEW_COUNT}
+							</span>
+						)}
 					</div>
 					<p style={{ color: COLORS.textDim, fontSize: 12.5, margin: "14px 0 0", lineHeight: 1.5 }}>
-						Click to stamp one, or drag to make it bigger and spin it round.
+						{ICONS.length} to choose from. Click to stamp one, or drag to make it bigger and spin it round.
 					</p>
 				</section>
 

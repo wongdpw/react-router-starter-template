@@ -996,19 +996,26 @@ export const DrawPad = forwardRef<
 			{icons && tool === "icon" && (
 				<div
 					style={{
-						display: "flex",
-						alignItems: "center",
-						gap: 8,
-						overflowX: "auto",
 						background: theme.panel,
 						border: `1px solid ${theme.border}`,
 						borderRadius: 14,
 						padding: "10px 14px",
 					}}
 				>
-					<span style={{ fontSize: 11.5, color: theme.dim, whiteSpace: "nowrap", marginRight: 4 }}>
-						Click to stamp · drag to size &amp; spin
-					</span>
+					<div style={{ display: "flex", justifyContent: "space-between", gap: 10, marginBottom: 9 }}>
+						<span style={{ fontSize: 11.5, color: theme.dim }}>Click to stamp · drag to size &amp; spin</span>
+						<span style={{ fontSize: 11.5, color: theme.dim }}>{ICONS.length} icons</span>
+					</div>
+					{/* A grid rather than a strip — the set is too big to scroll sideways. */}
+					<div
+						style={{
+							display: "grid",
+							gridTemplateColumns: "repeat(auto-fill, minmax(40px, 1fr))",
+							gap: 7,
+							maxHeight: 148,
+							overflowY: "auto",
+						}}
+					>
 					{ICONS.map((ic) => {
 						const on = ic.id === activeIcon;
 						return (
@@ -1020,9 +1027,8 @@ export const DrawPad = forwardRef<
 								aria-pressed={on}
 								onClick={() => setActiveIcon(ic.id)}
 								style={{
-									flexShrink: 0,
-									width: 40,
-									height: 40,
+									width: "100%",
+									aspectRatio: "1",
 									display: "grid",
 									placeItems: "center",
 									borderRadius: 10,
@@ -1042,6 +1048,7 @@ export const DrawPad = forwardRef<
 							</button>
 						);
 					})}
+					</div>
 				</div>
 			)}
 		</div>
