@@ -278,8 +278,13 @@ export class SquiggleRoom extends DurableObject<Env> {
 					this.hub.send(ws, { t: "error", message: "Drawing is too detailed to submit." });
 					return;
 				}
-				this.entries.set(me.id, msg.ops);
-				await this.ctx.storage.put(`entry:${me.id}`, msg.ops);
+				// The starting squiggle is part of the finished piece. The client
+				// draws on top of it as a locked base layer and only sends its own
+				// marks, so it is stitched back on here rather than trusted to the
+				// client — that way an entry is always self-contained.
+				const composed = [...room.squiggle, ...msg.ops];
+				this.entries.set(me.id, composed);
+				await this.ctx.storage.put(`entry:${me.id}`, composed);
 				// Only an explicit finish counts, so auto-saves can't end the round early.
 				if (msg.final === true) me.submitted = true;
 				await this.save();
