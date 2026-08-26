@@ -1,6 +1,18 @@
 import type { Route } from "./+types/games";
 import { BattleHeader } from "../components/BattleHeader";
 import { DAILY_PROMPT_ENABLED } from "../lib/feature-flags";
+import { visitorId, type GameId } from "../lib/game-ids";
+
+export async function loader({ context }: Route.LoaderArgs) {
+	const ns = context.cloudflare.env.GAME_STATS;
+	try {
+		const res = await ns.get(ns.idFromName("global")).fetch("https://stats/counts");
+		return { plays: (await res.json()) as Record<string, number> };
+	} catch {
+		// A stats hiccup must never take the games page down.
+		return { plays: {} as Record<string, number> };
+	}
+}
 
 export function meta({}: Route.MetaArgs) {
 	return [
@@ -24,6 +36,7 @@ const COLORS = {
 };
 
 interface GameCard {
+	id: GameId;
 	title: string;
 	tagline: string;
 	blurb: string;
@@ -38,6 +51,7 @@ interface GameCard {
 
 const GAMES: GameCard[] = [
 	{
+		id: "daily",
 		title: "Daily Prompt",
 		tagline: "New every day",
 		blurb:
@@ -50,6 +64,7 @@ const GAMES: GameCard[] = [
 		comingSoon: !DAILY_PROMPT_ENABLED,
 	},
 	{
+		id: "draw-battle",
 		title: "Draw Battle",
 		tagline: "Head to head",
 		blurb:
@@ -61,6 +76,7 @@ const GAMES: GameCard[] = [
 		art: <BattleArt />,
 	},
 	{
+		id: "guess",
 		title: "Guess the Drawing",
 		tagline: "Everyone plays",
 		blurb:
@@ -72,6 +88,7 @@ const GAMES: GameCard[] = [
 		art: <GuessArt />,
 	},
 	{
+		id: "fake-artist",
 		title: "Fake Artist",
 		tagline: "Social deduction",
 		blurb:
@@ -83,6 +100,7 @@ const GAMES: GameCard[] = [
 		art: <FakeArt />,
 	},
 	{
+		id: "squiggle",
 		title: "Squiggle Challenge",
 		tagline: "Everyone at once",
 		blurb:
@@ -94,6 +112,7 @@ const GAMES: GameCard[] = [
 		art: <SquiggleArt />,
 	},
 	{
+		id: "doodle",
 		title: "Doodle Board",
 		tagline: "No winner",
 		blurb:
@@ -106,7 +125,30 @@ const GAMES: GameCard[] = [
 	},
 ];
 
-export default function Games() {
+export default function Games({ loaderData }: Route.ComponentProps) {
+	const plays = loaderData.plays ?? {};
+	// Only games people can actually open compete for the badge.
+	const playable = GAMES.filter((g) => !g.comingSoon);
+	const best = Math.max(0, ...playable.map((g) => plays[g.id] ?? 0));
+
+	/**
+	 * Fired as the browser navigates away, so `keepalive` is what keeps the
+	 * request alive long enough to land. Failure is silent by design — a
+	 * missed count must never get in the way of opening the game.
+	 */
+	function recordPlay(id: GameId) {
+		try {
+			void fetch("/api/game-click", {
+				method: "POST",
+				keepalive: true,
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ game: id, visitor: visitorId() }),
+			}).catch(() => {});
+		} catch {
+			/* never block the click */
+		}
+	}
+
 	return (
 		<div style={{ fontFamily: "'Inter', sans-serif", background: COLORS.bg, color: COLORS.text, minHeight: "100vh" }}>
 			<link
@@ -154,10 +196,14 @@ export default function Games() {
 				</section>
 
 				<div className="g-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(290px, 1fr))", gap: 22 }}>
-					{GAMES.map((game) => (
+					{GAMES.map((game) => {
+						const count = plays[game.id] ?? 0;
+						const isTop = !game.comingSoon && count > 0 && count === best;
+						return (
 						<a
 							key={game.title}
 							href={game.comingSoon ? undefined : game.href}
+							onClick={game.comingSoon ? undefined : () => recordPlay(game.id)}
 							className={game.comingSoon ? undefined : "g-card"}
 							aria-disabled={game.comingSoon || undefined}
 							style={{
@@ -184,6 +230,32 @@ export default function Games() {
 								}}
 							>
 								{game.art}
+								{!game.comingSoon && count > 0 && (
+									<span
+										title={`${count} ${count === 1 ? "person has" : "people have"} opened this`}
+										style={{
+											position: "absolute",
+											top: 12,
+											right: 12,
+											display: "flex",
+											alignItems: "center",
+											gap: 5,
+											background: isTop ? game.tint : COLORS.bgPanel,
+											border: `1px solid ${isTop ? game.tint : COLORS.border}`,
+											color: isTop ? "#0A0A0A" : COLORS.textDim,
+											borderRadius: 999,
+											padding: "5px 11px",
+											fontSize: 10.5,
+											fontWeight: 800,
+											letterSpacing: "0.08em",
+											textTransform: "uppercase",
+											whiteSpace: "nowrap",
+										}}
+									>
+										{isTop && <span aria-hidden>★</span>}
+										{isTop ? `Most played · ${count}` : `${count} ${count === 1 ? "play" : "plays"}`}
+									</span>
+								)}
 								{game.comingSoon && (
 									<span
 										style={{
@@ -243,7 +315,8 @@ export default function Games() {
 								</span>
 							</div>
 						</a>
-					))}
+						);
+					})}
 				</div>
 
 				<p style={{ textAlign: "center", marginTop: 40, color: COLORS.textDim, fontSize: 13.5 }}>

@@ -40,6 +40,10 @@
 			{
 				"name": "DOODLE_ROOM",
 				"class_name": "DoodleRoom"
+			},
+			{
+				"name": "GAME_STATS",
+				"class_name": "GameStats"
 			}
 		]
 	},
@@ -72,6 +76,12 @@
 			"tag": "v5",
 			"new_sqlite_classes": [
 				"DoodleRoom"
+			]
+		},
+		{
+			"tag": "v6",
+			"new_sqlite_classes": [
+				"GameStats"
 			]
 		}
 	]

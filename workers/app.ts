@@ -6,6 +6,7 @@ export { GuessRoom } from "./guess-room";
 export { FakeArtistRoom } from "./fake-artist-room";
 export { SquiggleRoom } from "./squiggle-room";
 export { DoodleRoom } from "./doodle-room";
+export { GameStats } from "./game-stats";
 
 declare module "react-router" {
 	export interface AppLoadContext {
