@@ -16,6 +16,7 @@ export default [
 	route("galaxy-swarm/online", "routes/galaxy-swarm.online.tsx"),
 	route("galaxy-swarm/room/:code", "routes/galaxy-swarm.room.$code.tsx"),
 	route("api/game-click", "routes/api.game-click.tsx"),
+	route("api/high-scores", "routes/api.high-scores.tsx"),
 	route("daily", "routes/daily.tsx"),
 	route("draw-battle", "routes/draw-battle.tsx"),
 	route("guess", "routes/guess.tsx"),

@@ -8,6 +8,7 @@ export { SquiggleRoom } from "./squiggle-room";
 export { DoodleRoom } from "./doodle-room";
 export { GalaxySwarmRoom } from "./galaxy-room";
 export { GameStats } from "./game-stats";
+export { HighScores } from "./high-scores";
 
 declare module "react-router" {
 	export interface AppLoadContext {

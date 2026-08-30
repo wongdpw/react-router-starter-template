@@ -1,6 +1,7 @@
 import type { Route } from "./+types/galaxy-swarm";
 import { BattleHeader } from "../components/BattleHeader";
 import { useEffect, useRef } from "react";
+import { HighScoreBoard, InitialsPrompt, useHighScores } from "../components/HighScores";
 
 export function meta({}: Route.MetaArgs) {
 	return [{ title: "Galaxy Swarm — Games — ArtDrop Spot" }];
@@ -141,6 +142,12 @@ function rowScore(row: number): number {
 }
 
 export default function GalaxySwarm({}: Route.ComponentProps) {
+	const { board, pendingScore, justRanked, finishRun, submit, dismiss } = useHighScores("galaxy-swarm");
+	// The loop lives in a mount-once effect, so it reaches the reporter
+	// through a ref rather than re-subscribing every render.
+	const finishRef = useRef(finishRun);
+	finishRef.current = finishRun;
+	const reportedRef = useRef(false);
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 	const stateRef = useRef<GameState | null>(null);
 	const keysRef = useRef<Record<string, boolean>>({});
@@ -161,6 +168,7 @@ export default function GalaxySwarm({}: Route.ComponentProps) {
 				(e.key === " " || e.key === "Enter") &&
 				(!stateRef.current || stateRef.current.over || !stateRef.current.started)
 			) {
+				reportedRef.current = false;
 				stateRef.current = newGame();
 			}
 		}
@@ -190,6 +198,10 @@ export default function GalaxySwarm({}: Route.ComponentProps) {
 			state.lives -= 1;
 			if (state.lives <= 0) {
 				state.over = true;
+				if (!reportedRef.current) {
+					reportedRef.current = true;
+					finishRef.current(state.score);
+				}
 				return;
 			}
 			state.playerX = W / 2;
@@ -506,6 +518,10 @@ export default function GalaxySwarm({}: Route.ComponentProps) {
 					</a>
 				</p>
 
+				{pendingScore !== null && (
+					<InitialsPrompt score={pendingScore} onSubmit={submit} onCancel={dismiss} />
+				)}
+
 				<canvas
 					ref={canvasRef}
 					width={W}
@@ -517,6 +533,8 @@ export default function GalaxySwarm({}: Route.ComponentProps) {
 						background: "#000000",
 					}}
 				/>
+
+				<HighScoreBoard board={board} highlight={justRanked} />
 			</div>
 		</div>
 	);

@@ -564,6 +564,9 @@ function stepDying(){
     if (G.lives <= 0){
       G.state = 'over';
       G.say('GAME OVER', 100000, P.red);
+      /* tell the page around us the run is over, so it can offer the
+         arcade high-score board. Harmless when opened standalone. */
+      try { parent.postMessage({ type:'moon-patrol:gameover', score:G.score }, '*'); } catch(e){}
     } else {
       G.reset(false);
       G.state = 'play';

@@ -1,5 +1,7 @@
 import type { Route } from "./+types/moon-patrol";
+import { useEffect } from "react";
 import { BattleHeader } from "../components/BattleHeader";
+import { HighScoreBoard, InitialsPrompt, useHighScores } from "../components/HighScores";
 
 export function meta({}: Route.MetaArgs) {
 	return [{ title: "Moon Patrol — Games — ArtDrop Spot" }];
@@ -18,6 +20,22 @@ const COLORS = {
 // high-score localStorage all keep working) while this route provides the
 // site header and nav around it.
 export default function MoonPatrol({}: Route.ComponentProps) {
+	const { board, pendingScore, justRanked, finishRun, submit, dismiss } = useHighScores("moon-patrol");
+
+	// The game runs in an iframe and posts its final score out when a run
+	// ends; anything else arriving on the channel is ignored.
+	useEffect(() => {
+		function onMessage(event: MessageEvent) {
+			if (event.origin !== window.location.origin) return;
+			const data = event.data as { type?: unknown; score?: unknown } | null;
+			if (!data || data.type !== "moon-patrol:gameover") return;
+			if (typeof data.score !== "number" || !Number.isFinite(data.score)) return;
+			finishRun(data.score);
+		}
+		window.addEventListener("message", onMessage);
+		return () => window.removeEventListener("message", onMessage);
+	}, [finishRun]);
+
 	return (
 		<div
 			style={{
@@ -50,6 +68,10 @@ export default function MoonPatrol({}: Route.ComponentProps) {
 					Click the game once to give it keyboard focus.
 				</p>
 
+				{pendingScore !== null && (
+					<InitialsPrompt score={pendingScore} onSubmit={submit} onCancel={dismiss} />
+				)}
+
 				<iframe
 					src="/moon-patrol-game.html"
 					title="Moon Patrol"
@@ -63,6 +85,8 @@ export default function MoonPatrol({}: Route.ComponentProps) {
 						background: "#07070d",
 					}}
 				/>
+
+				<HighScoreBoard board={board} highlight={justRanked} />
 			</div>
 		</div>
 	);

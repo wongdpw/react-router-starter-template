@@ -48,6 +48,10 @@
 			{
 				"name": "GALAXY_ROOM",
 				"class_name": "GalaxySwarmRoom"
+			},
+			{
+				"name": "HIGH_SCORES",
+				"class_name": "HighScores"
 			}
 		]
 	},
@@ -92,6 +96,12 @@
 			"tag": "v7",
 			"new_sqlite_classes": [
 				"GalaxySwarmRoom"
+			]
+		},
+		{
+			"tag": "v8",
+			"new_sqlite_classes": [
+				"HighScores"
 			]
 		}
 	]

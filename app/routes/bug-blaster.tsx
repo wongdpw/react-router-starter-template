@@ -1,6 +1,7 @@
 import type { Route } from "./+types/bug-blaster";
 import { BattleHeader } from "../components/BattleHeader";
 import { useEffect, useRef, useState } from "react";
+import { HighScoreBoard, InitialsPrompt, useHighScores } from "../components/HighScores";
 
 export function meta({}: Route.MetaArgs) {
 	return [{ title: "Bug Blaster — Games — ArtDrop Spot" }];
@@ -151,6 +152,13 @@ export default function BugBlaster({}: Route.ComponentProps) {
 	const keysRef = useRef<Record<string, boolean>>({});
 	const [, setRenderTick] = useState(0);
 
+	const { board, pendingScore, justRanked, finishRun, submit, dismiss } = useHighScores("bug-blaster");
+	// The loop lives in a mount-once effect, so it reaches the reporter
+	// through a ref rather than re-subscribing every render.
+	const finishRef = useRef(finishRun);
+	finishRef.current = finishRun;
+	const reportedRef = useRef(false);
+
 	useEffect(() => {
 		const canvas = canvasRef.current;
 		if (!canvas) return;
@@ -169,6 +177,7 @@ export default function BugBlaster({}: Route.ComponentProps) {
 			keysRef.current[e.key] = true;
 
 			if ((e.key === " " || e.key === "Enter") && (!stateRef.current || stateRef.current.over || !stateRef.current.started)) {
+				reportedRef.current = false;
 				stateRef.current = newGame();
 			}
 		}
@@ -182,6 +191,10 @@ export default function BugBlaster({}: Route.ComponentProps) {
 			state.lives -= 1;
 			if (state.lives <= 0) {
 				state.over = true;
+				if (!reportedRef.current) {
+					reportedRef.current = true;
+					finishRef.current(state.score);
+				}
 			} else {
 				// classic behavior: field keeps its mushrooms, fresh chain
 				state.chains = [];
@@ -440,6 +453,10 @@ export default function BugBlaster({}: Route.ComponentProps) {
 					A classic arcade bug shooter. Arrows to move, Space to shoot.
 				</p>
 
+				{pendingScore !== null && (
+					<InitialsPrompt score={pendingScore} onSubmit={submit} onCancel={dismiss} />
+				)}
+
 				<canvas
 					ref={canvasRef}
 					width={W}
@@ -452,6 +469,8 @@ export default function BugBlaster({}: Route.ComponentProps) {
 						imageRendering: "pixelated",
 					}}
 				/>
+
+				<HighScoreBoard board={board} highlight={justRanked} />
 			</div>
 		</div>
 	);
