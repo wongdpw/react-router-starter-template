@@ -153,8 +153,8 @@ const GAMES: GameCard[] = [
 		tagline: "Retro arcade",
 		blurb:
 			"An alien formation sways overhead, peeling off in diving attack runs while you hold the line. Divers are worth double \u2014 if you can hit them mid-swoop.",
-		players: "Play alone",
-		modes: "Keyboard \u00b7 No room needed",
+		players: "1\u20132 players",
+		modes: "Solo or online rooms",
 		href: "/galaxy-swarm",
 		tint: "#818CF8",
 		art: <SwarmArt />,

@@ -497,6 +497,15 @@ export default function GalaxySwarm({}: Route.ComponentProps) {
 					Hold the line against the swarm. ← → to move, Space to shoot.
 				</p>
 
+				<p style={{ marginTop: -8, marginBottom: 24 }}>
+					<a
+						href="/galaxy-swarm/online"
+						style={{ color: "#38BDF8", fontWeight: 700, fontSize: 14, textDecoration: "none" }}
+					>
+						Play online with a friend on another computer →
+					</a>
+				</p>
+
 				<canvas
 					ref={canvasRef}
 					width={W}

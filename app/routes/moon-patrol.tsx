@@ -36,30 +36,34 @@ export default function MoonPatrol({}: Route.ComponentProps) {
 
 			<BattleHeader />
 
-			<p
-				style={{
-					textAlign: "center",
-					color: COLORS.textDim,
-					fontSize: 13,
-					margin: "10px 16px 0",
-				}}
-			>
-				Click the game once to give it keyboard focus.
-			</p>
+			<div style={{ maxWidth: 920, width: "100%", margin: "0 auto", padding: "28px 22px 60px", textAlign: "center", boxSizing: "border-box" }}>
+				<h1
+					style={{
+						fontFamily: "'Archivo Black', sans-serif",
+						fontSize: 32,
+						margin: "0 0 8px",
+					}}
+				>
+					Moon Patrol
+				</h1>
+				<p style={{ color: COLORS.textDim, fontSize: 13, margin: "0 0 18px" }}>
+					Click the game once to give it keyboard focus.
+				</p>
 
-			<iframe
-				src="/moon-patrol.html"
-				title="Moon Patrol"
-				allow="fullscreen"
-				style={{
-					flex: 1,
-					width: "100%",
-					minHeight: 560,
-					border: "none",
-					display: "block",
-					background: "#07070d",
-				}}
-			/>
+				<iframe
+					src="/moon-patrol-game.html"
+					title="Moon Patrol"
+					allow="fullscreen"
+					style={{
+						width: "100%",
+						height: 620,
+						border: `2px solid ${COLORS.border}`,
+						borderRadius: 12,
+						display: "block",
+						background: "#07070d",
+					}}
+				/>
+			</div>
 		</div>
 	);
 }

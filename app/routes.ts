@@ -13,6 +13,8 @@ export default [
 	route("bug-blaster", "routes/bug-blaster.tsx"),
 	route("moon-patrol", "routes/moon-patrol.tsx"),
 	route("galaxy-swarm", "routes/galaxy-swarm.tsx"),
+	route("galaxy-swarm/online", "routes/galaxy-swarm.online.tsx"),
+	route("galaxy-swarm/room/:code", "routes/galaxy-swarm.room.$code.tsx"),
 	route("api/game-click", "routes/api.game-click.tsx"),
 	route("daily", "routes/daily.tsx"),
 	route("draw-battle", "routes/draw-battle.tsx"),
