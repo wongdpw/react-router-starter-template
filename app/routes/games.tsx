@@ -147,6 +147,18 @@ const GAMES: GameCard[] = [
 		tint: "#C084FC",
 		art: <MoonArt />,
 	},
+	{
+		id: "galaxy-swarm",
+		title: "Galaxy Swarm",
+		tagline: "Retro arcade",
+		blurb:
+			"An alien formation sways overhead, peeling off in diving attack runs while you hold the line. Divers are worth double \u2014 if you can hit them mid-swoop.",
+		players: "Play alone",
+		modes: "Keyboard \u00b7 No room needed",
+		href: "/galaxy-swarm",
+		tint: "#818CF8",
+		art: <SwarmArt />,
+	},
 ];
 
 export default function Games({ loaderData }: Route.ComponentProps) {
@@ -498,6 +510,32 @@ function MoonArt() {
 			<rect x="76" y="43" width="8" height="6" rx="2" fill="#FACC15" />
 			<circle cx="65" cy="60" r="4.5" fill="#2E2E2E" stroke="#9CA3AF" strokeWidth="1.6" />
 			<circle cx="77" cy="60" r="4.5" fill="#2E2E2E" stroke="#9CA3AF" strokeWidth="1.6" />
+		</svg>
+	);
+}
+
+function SwarmArt() {
+	return (
+		<svg width="150" height="92" viewBox="0 0 150 92" fill="none" aria-hidden>
+			<rect x="22" y="8" width="106" height="76" rx="8" fill="#0A0A0A" stroke="#2E2E2E" />
+			<circle cx="40" cy="18" r="1.2" fill="#FFFFFF" opacity="0.7" />
+			<circle cx="72" cy="14" r="1.4" fill="#FFFFFF" opacity="0.8" />
+			<circle cx="112" cy="20" r="1.2" fill="#FFFFFF" opacity="0.6" />
+			<g fill="#818CF8">
+				<path d="M46 26l-5 5h10Z" />
+				<path d="M66 26l-5 5h10Z" />
+				<path d="M86 26l-5 5h10Z" />
+				<path d="M106 26l-5 5h10Z" />
+			</g>
+			<g fill="#F472B6">
+				<path d="M56 38l-5 5h10Z" />
+				<path d="M76 38l-5 5h10Z" />
+				<path d="M96 38l-5 5h10Z" />
+			</g>
+			<path d="M104 50l-6 8h12Z" fill="#FACC15" />
+			<rect x="74" y="56" width="2.6" height="10" fill="#FFFFFF" />
+			<path d="M75 80l-10 -4 4 -8h12l4 8Z" fill="#FACC15" />
+			<rect x="73.7" y="64" width="2.6" height="6" fill="#F87171" />
 		</svg>
 	);
 }
