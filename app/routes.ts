@@ -10,6 +10,8 @@ export default [
 	route("updates", "routes/updates.tsx"),
 	route("board", "routes/board.tsx"),
 	route("games", "routes/games.tsx"),
+	route("bug-blaster", "routes/bug-blaster.tsx"),
+	route("moon-patrol", "routes/moon-patrol.tsx"),
 	route("api/game-click", "routes/api.game-click.tsx"),
 	route("daily", "routes/daily.tsx"),
 	route("draw-battle", "routes/draw-battle.tsx"),

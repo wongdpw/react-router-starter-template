@@ -1,0 +1,1566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Moon Patrol (HTML5 tribute)</title>
+<style>
+  :root{ --bez:#14141f; }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; background:#07070d;
+    background-image:radial-gradient(ellipse at 50% 0%, #16162a 0%, #07070d 70%);
+    color:#cfe6ff; font-family:"Courier New",monospace;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    min-height:100vh; overflow:hidden; touch-action:none;
+  }
+  #cab{
+    padding:14px 14px 10px; border-radius:14px;
+    background:linear-gradient(#22223a,#101018);
+    box-shadow:0 0 0 2px #2f2f4d, 0 18px 50px rgba(0,0,0,.8);
+  }
+  #wrap{position:relative; line-height:0; background:#000; border-radius:6px; overflow:hidden;
+        box-shadow:inset 0 0 0 2px #000, 0 0 30px rgba(70,130,255,.18)}
+  canvas{
+    display:block; image-rendering:pixelated; image-rendering:crisp-edges;
+    width:min(96vw, calc((100vh - 150px) * 1.6)); height:auto; aspect-ratio:640/400;
+  }
+  /* scanline + vignette overlay */
+  #wrap::after{
+    content:""; position:absolute; inset:0; pointer-events:none;
+    background:
+      radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(0,0,0,.55) 100%),
+      repeating-linear-gradient(to bottom, rgba(0,0,0,.20) 0 1px, rgba(0,0,0,0) 1px 3px);
+    mix-blend-mode:multiply; opacity:.75;
+  }
+  #bar{display:flex; gap:10px; align-items:center; justify-content:space-between;
+       margin-top:9px; font-size:12px; letter-spacing:.5px; color:#8fa6c9}
+  #bar b{color:#ffd76a; font-weight:700}
+  .btn{
+    cursor:pointer; user-select:none; background:#1d2440; color:#bcd6ff;
+    border:1px solid #38487a; border-radius:5px; padding:4px 10px; font:inherit; font-size:12px;
+  }
+  .btn:hover{background:#26305a; color:#fff}
+  kbd{background:#1b2038;border:1px solid #3a4570;border-radius:3px;padding:0 4px}
+</style>
+</head>
+<body>
+<div id="cab">
+  <div id="wrap"><canvas id="c" width="640" height="400"></canvas></div>
+  <div id="bar">
+    <div>&#9664;&#9654; speed &nbsp;|&nbsp; <b>SPACE</b>/&#9650; jump &nbsp;|&nbsp; <b>Z</b>/<b>X</b> fire &nbsp;|&nbsp; <b>P</b> pause</div>
+    <div><button class="btn" id="mute">SOUND: ON</button> <button class="btn" id="full">FULLSCREEN</button></div>
+  </div>
+</div>
+<script>
+"use strict";
+/* =========================================================================
+   MOON PATROL  —  HTML5 canvas tribute
+   Original code and procedurally drawn art (no original ROM assets).
+   ========================================================================= */
+
+const cv  = document.getElementById('c');
+const ctx = cv.getContext('2d', {alpha:false});
+ctx.imageSmoothingEnabled = false;
+
+const W = 640, H = 400;
+
+/* ---- screen layout -------------------------------------------------- */
+const HUD_H    = 26;          // score row
+const GROUND_Y = 300;         // top surface of the moon
+const GND_BOT  = 360;         // bottom of ground band
+const BAR_Y    = 362;         // A..Z course bar
+
+/* ---- physics -------------------------------------------------------- */
+const GRAV     = 0.50;
+const JUMP_V   = -10.6;
+const SPD_MIN  = 1.50;
+const SPD_MAX  = 5.20;
+const SPD_DEF  = 3.00;
+const SPD_ACC  = 0.055;
+const BUGGY_X  = 118;         // fixed screen x of the buggy
+const HALF_W   = 26;          // buggy half width
+const BODY_H   = 17;
+
+/* ---- course --------------------------------------------------------- */
+const LETTERS  = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const CP_LEN   = 1500;        // world px between checkpoints
+const SLOT     = 205;         // obstacle slot spacing
+const MIN_STRIP= 130;         // shortest landing strip we ever leave between craters
+const ISLAND   = 26;          // gap inside a "double crater" — too small to land on,
+                              // so the pair reads as one obstacle cleared in one jump
+
+/* ---- palette -------------------------------------------------------- */
+const P = {
+  sky1:'#05060f', sky2:'#141033', sky3:'#2a1140',
+  star:'#dfe9ff',
+  planet:'#7b3b52', planetDk:'#4d2436', planetLt:'#a45a6e',
+  farM :'#332764', farM2:'#211a4a',
+  city :'#33256e', cityLt:'#4a37a0', win:'#6fe3ff', domeA:'#2f6fb0', domeB:'#173f6b',
+  ridge:'#4a2f6b', ridge2:'#38215a',
+  gTop :'#c9bda4', gMid:'#8d8267', gLow:'#59503c', gDark:'#2a2519',
+  hole :'#0a0910',
+  rock :'#9a8f76', rockD:'#5d5540', rockL:'#cfc3a4',
+  hull :'#dfe6f5', hullD:'#8f9bb8', hullS:'#5b6683',
+  blue :'#2f6ce8', blueD:'#1a3f96', red:'#e8443c', gold:'#ffd76a',
+  tyre :'#191922', hub:'#b9c3d8',
+  ufo  :'#7be0ff', ufoD:'#1d7fa8', alien:'#4be07a', alienD:'#1f8a45',
+  shot :'#fff2a8', flame:'#ff9b2f'
+};
+
+/* =========================================================================
+   AUDIO — tiny WebAudio synth (procedural, no samples)
+   ========================================================================= */
+const Snd = {
+  ac:null, master:null, on:true, musicOn:true, nextNote:0, step:0, timer:null,
+  init(){
+    if (this.ac) return;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) { this.on = false; return; }
+    this.ac = new AC();
+    this.master = this.ac.createGain();
+    this.master.gain.value = 0.28;
+    this.master.connect(this.ac.destination);
+    this.nextNote = this.ac.currentTime + 0.06;
+    this.timer = setInterval(()=>this.sched(), 25);
+  },
+  resume(){ if (this.ac && this.ac.state === 'suspended') this.ac.resume(); },
+  tone(f0, f1, dur, type, vol){
+    if (!this.on || !this.ac) return;
+    const t = this.ac.currentTime, o = this.ac.createOscillator(), g = this.ac.createGain();
+    o.type = type || 'square';
+    o.frequency.setValueAtTime(f0, t);
+    if (f1 && f1 !== f0) o.frequency.exponentialRampToValueAtTime(Math.max(20,f1), t + dur);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol || 0.22, t + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(this.master); o.start(t); o.stop(t + dur + 0.02);
+  },
+  noise(dur, vol, f0, f1){
+    if (!this.on || !this.ac) return;
+    const t = this.ac.currentTime, n = Math.floor(this.ac.sampleRate * dur);
+    const buf = this.ac.createBuffer(1, n, this.ac.sampleRate), d = buf.getChannelData(0);
+    for (let i=0;i<n;i++) d[i] = (Math.random()*2-1) * (1 - i/n);
+    const src = this.ac.createBufferSource(); src.buffer = buf;
+    const bp = this.ac.createBiquadFilter(); bp.type='lowpass';
+    bp.frequency.setValueAtTime(f0||1400, t);
+    bp.frequency.exponentialRampToValueAtTime(Math.max(60,f1||120), t+dur);
+    const g = this.ac.createGain();
+    g.gain.setValueAtTime(vol||0.35, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+    src.connect(bp); bp.connect(g); g.connect(this.master); src.start(t);
+  },
+  jump(){ this.tone(220, 700, 0.16, 'square', 0.16); },
+  fire(){ this.tone(900, 180, 0.07, 'square', 0.13); },
+  hitRock(){ this.noise(0.18, 0.30, 2200, 200); },
+  boom(){ this.noise(0.75, 0.55, 900, 40); this.tone(150, 35, 0.6, 'sawtooth', 0.20); },
+  ufoHit(){ this.tone(1200, 260, 0.20, 'sawtooth', 0.18); this.noise(0.20,0.22,3000,400); },
+  cp(){ [523,659,784,1046].forEach((f,i)=> setTimeout(()=>this.tone(f,f,0.13,'square',0.18), i*80)); },
+  bonus(){ [784,988,1174,1568].forEach((f,i)=> setTimeout(()=>this.tone(f,f,0.10,'triangle',0.16), i*60)); },
+  drop(){ this.tone(760, 120, 0.35, 'sine', 0.10); },
+
+  /* driving bass loop — original 8-step pattern */
+  seq: [0,0,7,0, 3,3,10,7],
+  sched(){
+    if (!this.ac) return;
+    const look = this.ac.currentTime + 0.12;
+    while (this.nextNote < look){
+      if (this.on && this.musicOn && Game.state === 'play'){
+        const semi = this.seq[this.step % 8];
+        const f = 55.0 * Math.pow(2, semi/12);
+        const t = this.nextNote;
+        const o = this.ac.createOscillator(), g = this.ac.createGain();
+        o.type='square'; o.frequency.setValueAtTime(f, t);
+        g.gain.setValueAtTime(0.0001,t);
+        g.gain.exponentialRampToValueAtTime(0.13, t+0.01);
+        g.gain.exponentialRampToValueAtTime(0.0001, t+0.15);
+        o.connect(g); g.connect(this.master); o.start(t); o.stop(t+0.18);
+        if (this.step % 2 === 0){
+          const len = Math.floor(this.ac.sampleRate*0.03);
+          const b = this.ac.createBuffer(1,len,this.ac.sampleRate), d=b.getChannelData(0);
+          for(let i=0;i<len;i++) d[i]=(Math.random()*2-1)*(1-i/len);
+          const n = this.ac.createBufferSource(); n.buffer=b;
+          const hp=this.ac.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=6000;
+          const hg=this.ac.createGain(); hg.gain.value=0.05;
+          n.connect(hp); hp.connect(hg); hg.connect(this.master); n.start(t);
+        }
+      }
+      this.nextNote += 0.1364;
+      this.step++;
+    }
+  }
+};
+
+/* =========================================================================
+   INPUT
+   ========================================================================= */
+const held = {left:false,right:false,jump:false,fire:false};
+let firePressed = false, jumpPressed = false;
+
+const MAP = {
+  ArrowLeft:'left', KeyA:'left',
+  ArrowRight:'right', KeyD:'right',
+  ArrowUp:'jump', KeyW:'jump', Space:'jump',
+  KeyZ:'fire', KeyX:'fire', ControlLeft:'fire', ShiftLeft:'fire', Enter:'fire'
+};
+
+/* fall back to e.key so non-QWERTY layouts still drive the buggy */
+const MAPK = {
+  arrowleft:'left',  a:'left',
+  arrowright:'right', d:'right',
+  arrowup:'jump', w:'jump', ' ':'jump', spacebar:'jump',
+  z:'fire', x:'fire', enter:'fire', control:'fire', shift:'fire'
+};
+function actionFor(e){ return MAP[e.code] || MAPK[(e.key||'').toLowerCase()]; }
+function isKey(e, code, ch){ return e.code === code || (e.key||'').toLowerCase() === ch; }
+
+addEventListener('keydown', e=>{
+  const a = actionFor(e);
+  if (a || isKey(e,'KeyP','p') || isKey(e,'KeyM','m')) e.preventDefault();
+  Snd.init(); Snd.resume();
+  if (e.repeat) return;
+  if (isKey(e,'KeyP','p')){ Game.togglePause(); return; }
+  if (isKey(e,'KeyM','m')){ toggleMute(); return; }
+  if (!a) return;
+  held[a] = true;
+  if (a==='fire') firePressed = true;
+  if (a==='jump') jumpPressed = true;
+  if (Game.state==='title' || Game.state==='over'){ if(a==='fire'||a==='jump') Game.start(); }
+});
+addEventListener('keyup', e=>{ const a = actionFor(e); if (a) held[a] = false; });
+addEventListener('blur', ()=>{ held.left=held.right=held.jump=held.fire=false; });
+
+/* touch: top-left = jump, top-right = fire, bottom strip = speed */
+function touchZone(x,y,r){
+  const rx = (x - r.left)/r.width, ry = (y - r.top)/r.height;
+  if (ry > 0.72) return rx < 0.5 ? 'left' : 'right';
+  return rx < 0.5 ? 'jump' : 'fire';
+}
+const activeTouch = {};
+cv.addEventListener('touchstart', e=>{
+  e.preventDefault(); Snd.init(); Snd.resume();
+  const r = cv.getBoundingClientRect();
+  for (const t of e.changedTouches){
+    const z = touchZone(t.clientX, t.clientY, r);
+    activeTouch[t.identifier] = z; held[z] = true;
+    if (z==='fire') firePressed = true;
+    if (z==='jump') jumpPressed = true;
+  }
+  if (Game.state==='title'||Game.state==='over') Game.start();
+}, {passive:false});
+function endTouch(e){
+  e.preventDefault();
+  for (const t of e.changedTouches){
+    const z = activeTouch[t.identifier];
+    if (z){ held[z] = false; delete activeTouch[t.identifier]; }
+  }
+}
+cv.addEventListener('touchend', endTouch, {passive:false});
+cv.addEventListener('touchcancel', endTouch, {passive:false});
+
+/* =========================================================================
+   DETERMINISTIC COURSE GENERATION
+   Every obstacle is a pure function of (slot index, course seed) so that
+   respawning at a checkpoint replays exactly the same stretch of terrain.
+   ========================================================================= */
+let courseSeed = 1;
+function hash(i, salt){
+  let t = (i * 0x9E3779B1 + courseSeed * 0x85EBCA6B + (salt|0) * 0xC2B2AE35) >>> 0;
+  t = Math.imul(t ^ (t >>> 15), 1 | t);
+  t ^= t + Math.imul(t ^ (t >>> 7), 61 | t);
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+}
+
+/* gentle ground relief so the suspension has something to work with */
+function bumpAt(x){
+  return Math.sin(x*0.017)*2.0 + Math.sin(x*0.041+1.7)*1.3 + Math.sin(x*0.0071+0.4)*1.6;
+}
+
+/* =========================================================================
+   GAME STATE
+   ========================================================================= */
+/* file:// origins can refuse storage, so never let it take the game down */
+function loadHi(){ try { return +localStorage.getItem('mp_hi') || 0; } catch(e){ return 0; } }
+function saveHi(v){ try { localStorage.setItem('mp_hi', v); } catch(e){} }
+
+const Game = {
+  state:'title',            // title | play | dying | clear | over | pause
+  prevState:'title',
+  dist:0, speed:SPD_DEF, score:0, lives:3, lap:0,
+  hi: loadHi(),
+  cpIndex:0, cpDist:0, sectionFrames:0, nextExtra:20000,
+  timer:0, flash:0, shake:0, tick:0,
+  msg:null, msgT:0,
+
+  buggy:{ y:GROUND_Y, vy:0, air:false, tilt:0, wheel:0, hop:0, inv:0 },
+
+  bullets:[], upshots:[], craters:[], rocks:[], ufos:[], bombs:[],
+  aliens:[], eshots:[], parts:[], pops:[],
+
+  genSlot:0, ufoTimer:420, alienTimer:900, lastRight:-1e9, lastWasCrater:false,
+
+  reset(full){
+    if (full){
+      this.score = 0; this.lives = 3; this.lap = 0; this.nextExtra = 20000;
+      this.cpIndex = 0; this.cpDist = 0; courseSeed = 1;
+    }
+    this.dist = this.cpDist;
+    this.speed = SPD_DEF;
+    this.sectionFrames = 0;
+    this.buggy = { y:GROUND_Y, vy:0, air:false, tilt:0, wheel:0, hop:0, inv:120 };
+    this.bullets.length = this.upshots.length = 0;
+    this.craters.length = this.rocks.length = 0;
+    this.ufos.length = this.bombs.length = 0;
+    this.aliens.length = this.eshots.length = 0;
+    this.parts.length = this.pops.length = 0;
+    this.ufoTimer = 420; this.alienTimer = 900;
+    this.lastRight = this.dist - 600; this.lastWasCrater = false;
+    this.genSlot = Math.floor(this.dist / SLOT) - 1;
+    this.generate(this.dist + W + 400);
+  },
+
+  start(){
+    this.reset(true);
+    this.state = 'play';
+    this.msg = null;
+    Snd.init(); Snd.resume();
+  },
+
+  togglePause(){
+    if (this.state === 'play'){ this.prevState = this.state; this.state = 'pause'; }
+    else if (this.state === 'pause'){ this.state = 'play'; }
+  },
+
+  say(text, frames, colour){ this.msg = text; this.msgT = frames||120; this.msgC = colour||P.gold; },
+
+  addScore(n){
+    this.score += n;
+    if (this.score >= this.nextExtra){
+      this.nextExtra += 20000; this.lives++; Snd.bonus();
+      this.say('EXTRA BUGGY', 120, '#8ef58e');
+    }
+    if (this.score > this.hi){ this.hi = this.score; saveHi(this.hi); }
+  },
+
+  /* --------------------------------------------------------------
+     Procedural obstacle layout — pure function of the slot index
+     -------------------------------------------------------------- */
+  generate(uptoX){
+    const diff = Math.min(1, this.lap*0.30 + (this.cpIndex/26)*0.45);
+    while (this.genSlot * SLOT < uptoX){
+      const i = this.genSlot++;
+      const x = i * SLOT + hash(i,7)*70;
+
+      // keep a clear landing strip around every checkpoint line
+      const nearCP = Math.abs(((x + 130) % CP_LEN) - 130) < 190;
+      if (nearCP || x < 420) continue;
+
+      const r = hash(i,1);
+      const a = hash(i,2), b = hash(i,3);
+
+      if (r < 0.26){                                   // open ground
+        continue;
+      } else if (r < 0.52){                            // single crater
+        placeCrater(x, 46 + a*30 + diff*20);
+      } else if (r < 0.68){                            // boulder
+        const big = b > 0.45;
+        placeRock(x, big?'big':'small');
+      } else if (r < 0.79){                            // crater pair
+        const w = 30 + a*10 + diff*4;
+        const c1 = placeCrater(x - (w*0.5 + ISLAND*0.5), w);
+        const c2 = mkCrater(c1.x + w + ISLAND, w);   // deliberately tight pair
+        this.craters.push(c2);
+        this.lastRight = c2.x + w*0.5;
+        this.lastWasCrater = true;
+      } else if (r < 0.88){                            // boulder then crater
+        placeRock(x - 55, 'small');
+        placeCrater(x + 95, 44 + a*24 + diff*16);
+      } else if (r < 0.95){                            // mine
+        placeRock(x, 'mine');
+        if (b > 0.6) placeRock(x + 46, 'mine');
+      } else {                                         // rock field
+        placeRock(x - 40, 'small');
+        placeRock(x + 34, b>0.5?'big':'small');
+      }
+    }
+  }
+};
+
+/* place a crater, nudging it right if it would crowd the previous one */
+function placeCrater(x, w){
+  const gap = Game.lastWasCrater ? MIN_STRIP : 150;
+  let left = x - w*0.5;
+  if (left - Game.lastRight < gap) left = Game.lastRight + gap;
+  const c = mkCrater(left + w*0.5, w);
+  Game.craters.push(c);
+  Game.lastRight = left + w;
+  Game.lastWasCrater = true;
+  return c;
+}
+
+/* a boulder must never sit in the spot you are going to land on */
+function placeRock(x, kind){
+  const r = mkRock(x, kind);
+  const gap = Game.lastWasCrater ? 130 : 40;
+  let left = x - r.w*0.5;
+  if (left - Game.lastRight < gap) left = Game.lastRight + gap;
+  r.x = left + r.w*0.5;
+  Game.rocks.push(r);
+  Game.lastRight = left + r.w;
+  Game.lastWasCrater = false;
+  return r;
+}
+
+function mkCrater(x, w){
+  return { x:x, w:Math.max(34, w), d:20 + Math.min(16, w*0.16), fresh:0 };
+}
+function mkRock(x, kind){
+  if (kind === 'big')   return { x:x, w:34, h:27, hp:2, kind:'big' };
+  if (kind === 'mine')  return { x:x, w:16, h:11, hp:1, kind:'mine' };
+  return { x:x, w:22, h:16, hp:1, kind:'small' };
+}
+
+/* =========================================================================
+   TERRAIN QUERIES
+   ========================================================================= */
+function craterAt(wx){
+  const c = Game.craters;
+  for (let i=0;i<c.length;i++){
+    const k = c[i];
+    if (wx > k.x - k.w*0.5 && wx < k.x + k.w*0.5) return k;
+  }
+  return null;
+}
+/* surface height at a world x, or null when the ground is missing there */
+function surfaceAt(wx){
+  return craterAt(wx) ? null : GROUND_Y + bumpAt(wx);
+}
+
+/* =========================================================================
+   PARTICLES
+   ========================================================================= */
+function spark(x,y,n,col,spd,life){
+  for (let i=0;i<n;i++){
+    const a = Math.random()*Math.PI*2, s = Math.random()*(spd||3)+0.6;
+    Game.parts.push({ x:x, y:y, vx:Math.cos(a)*s, vy:Math.sin(a)*s - 1.1,
+                      life:(life||34)+Math.random()*16, col:col||P.flame, g:0.16 });
+  }
+}
+function popup(x,y,text,col){ Game.pops.push({x:x,y:y,t:52,text:text,col:col||P.gold}); }
+
+/* =========================================================================
+   UPDATE — one fixed 60 Hz step
+   ========================================================================= */
+function step(){
+  const G = Game;
+  G.tick++;
+  if (G.flash > 0) G.flash--;
+  if (G.shake > 0) G.shake--;
+  if (G.msgT > 0 && --G.msgT === 0) G.msg = null;
+
+  if (G.state === 'dying'){ stepDying(); return; }
+  if (G.state === 'clear'){
+    if (--G.timer <= 0){
+      G.lap++; courseSeed++; G.cpIndex = 0; G.cpDist = 0;
+      G.reset(false); G.state = 'play';
+      G.say('COURSE ' + (G.lap+1), 150, '#8ef58e');
+    }
+    stepParticles(); return;
+  }
+  if (G.state !== 'play') return;
+
+  const b = G.buggy;
+  G.sectionFrames++;
+
+  /* ---- throttle ---- */
+  if (held.right) G.speed = Math.min(SPD_MAX, G.speed + SPD_ACC);
+  else if (held.left) G.speed = Math.max(SPD_MIN, G.speed - SPD_ACC*1.5);
+  else G.speed += (SPD_DEF - G.speed) * 0.012;
+
+  G.dist += G.speed;
+  G.generate(G.dist + W + 420);
+  if (b.inv > 0) b.inv--;
+
+  /* ---- terrain support under the four wheels ---- */
+  const wx = G.dist + BUGGY_X;
+  const offs = [-19,-7,7,19];
+  let support = null, nSup = 0, frontY = null, rearY = null;
+  for (let i=0;i<4;i++){
+    const s = surfaceAt(wx + offs[i]);
+    if (s !== null){
+      nSup++;
+      support = (support === null) ? s : Math.min(support, s);
+      if (i >= 2) frontY = (frontY===null)? s : Math.min(frontY, s);
+      else        rearY  = (rearY ===null)? s : Math.min(rearY , s);
+    }
+  }
+  const grounded = nSup >= 2;
+
+  /* ---- jump ---- */
+  if (jumpPressed && !b.air && grounded){
+    b.air = true; b.vy = JUMP_V; b.hop = 0; Snd.jump();
+    spark(BUGGY_X, b.y, 6, '#cfd8ff', 2.0, 18);
+  }
+  jumpPressed = false;
+
+  /* ---- vertical motion ---- */
+  if (b.air || !grounded){
+    b.vy += GRAV;
+    if (b.vy > 13) b.vy = 13;
+    b.y += b.vy;
+    if (grounded && b.vy > 0 && b.y >= support){
+      b.y = support; b.vy = 0; b.air = false;
+      spark(BUGGY_X, b.y, 4, '#b9b09a', 1.6, 16);
+    }
+    // dropped into a hole
+    if (!grounded && b.y > GROUND_Y + 18){ b.inv = 0; crash('crater'); return; }
+    b.tilt += ((b.vy * -0.020) - b.tilt) * 0.12;
+  } else {
+    b.y += (support - b.y) * 0.55;
+    const dy = (frontY!==null && rearY!==null) ? (frontY - rearY) : 0;
+    b.tilt += ((dy * 0.022) - b.tilt) * 0.2;
+    b.hop = Math.sin(G.tick*0.55) * Math.min(1.2, G.speed*0.22);
+  }
+  b.wheel += G.speed * 0.12;
+
+  /* ---- guns: forward + upward, classic dual fire ---- */
+  if (firePressed){
+    if (G.bullets.length < 4){
+      G.bullets.push({ x:wx + 30, y:b.y - 13, vx:9.5 + G.speed });
+      Snd.fire();
+    }
+    if (G.upshots.length < 3) G.upshots.push({ x:wx + 4, y:b.y - 24, vy:-9.0 });
+  }
+  firePressed = false;
+
+  stepBullets(wx, b);
+  stepUfos(wx, b);
+  stepAliens(wx, b);
+  stepCollisions(wx, b);
+  stepCheckpoint();
+  stepParticles();
+  cull();
+}
+
+function stepParticles(){
+  const G = Game;
+  for (let i=G.parts.length-1;i>=0;i--){
+    const p = G.parts[i];
+    p.x += p.vx; p.y += p.vy; p.vy += p.g; p.vx *= 0.99;
+    if (--p.life <= 0) G.parts.splice(i,1);
+  }
+  for (let i=G.pops.length-1;i>=0;i--){
+    const p = G.pops[i]; p.y -= 0.55;
+    if (--p.t <= 0) G.pops.splice(i,1);
+  }
+}
+
+function stepDying(){
+  const G = Game;
+  stepParticles();
+  G.dist += (G.speed *= 0.90);
+  if (--G.timer <= 0){
+    if (G.lives <= 0){
+      G.state = 'over';
+      G.say('GAME OVER', 100000, P.red);
+    } else {
+      G.reset(false);
+      G.state = 'play';
+      G.say('CHECKPOINT ' + LETTERS[G.cpIndex % 26], 90, '#8ef58e');
+    }
+  }
+}
+
+function crash(reason){
+  const G = Game;
+  if (G.state !== 'play' || G.buggy.inv > 0) return;
+  G.lives--;
+  G.state  = 'dying';
+  G.timer  = 110;
+  G.flash  = 6;
+  G.shake  = 26;
+  Snd.boom();
+  const bx = BUGGY_X, by = G.buggy.y;
+  spark(bx, by-10, 40, P.flame, 5.5, 60);
+  spark(bx, by-10, 24, '#ffe9a8', 4.0, 46);
+  spark(bx, by-6, 18, P.hullD, 3.2, 70);
+}
+
+/* =========================================================================
+   BULLETS
+   ========================================================================= */
+function stepBullets(wx, b){
+  const G = Game;
+
+  /* forward gun */
+  for (let i=G.bullets.length-1;i>=0;i--){
+    const s = G.bullets[i];
+    s.x += s.vx;
+    if (s.x - G.dist > W + 20){ G.bullets.splice(i,1); continue; }
+    let gone = false;
+
+    for (let j=G.rocks.length-1;j>=0;j--){
+      const r = G.rocks[j];
+      const sy = surfaceAt(r.x); if (sy === null) continue;
+      if (s.x > r.x - r.w*0.5 && s.x < r.x + r.w*0.5 &&
+          s.y > sy - r.h - 4 && s.y < sy + 2){
+        hitRock(j, r, sy); gone = true; break;
+      }
+    }
+    if (gone){ G.bullets.splice(i,1); continue; }
+
+    for (let j=G.aliens.length-1;j>=0;j--){
+      const a = G.aliens[j];
+      if (Math.abs(s.x - a.x) < 22 && Math.abs(s.y - (a.y-11)) < 15){
+        killAlien(j, a); gone = true; break;
+      }
+    }
+    if (gone) G.bullets.splice(i,1);
+  }
+
+  /* upward gun */
+  for (let i=G.upshots.length-1;i>=0;i--){
+    const s = G.upshots[i];
+    s.y += s.vy;
+    if (s.y < HUD_H - 10){ G.upshots.splice(i,1); continue; }
+    let gone = false;
+
+    for (let j=G.ufos.length-1;j>=0;j--){
+      const u = G.ufos[j];
+      if (Math.abs(s.x - u.x) < 20 && Math.abs(s.y - u.y) < 12){
+        G.ufos.splice(j,1);
+        Snd.ufoHit();
+        spark(u.x - G.dist, u.y, 18, P.ufo, 3.4, 40);
+        G.addScore(200); popup(u.x - G.dist, u.y, '200', P.ufo);
+        gone = true; break;
+      }
+    }
+    if (gone){ G.upshots.splice(i,1); continue; }
+
+    for (let j=G.bombs.length-1;j>=0;j--){
+      const m = G.bombs[j];
+      if (Math.abs(s.x - m.x) < 13 && Math.abs(s.y - m.y) < 13){
+        G.bombs.splice(j,1);
+        Snd.hitRock();
+        spark(m.x - G.dist, m.y, 12, P.flame, 2.6, 30);
+        G.addScore(50); popup(m.x - G.dist, m.y, '50', P.gold);
+        gone = true; break;
+      }
+    }
+    if (gone) G.upshots.splice(i,1);
+  }
+}
+
+function hitRock(index, r, sy){
+  const G = Game;
+  Snd.hitRock();
+  spark(r.x - G.dist, sy - r.h*0.5, 12, P.rockL, 2.8, 28);
+  if (r.kind === 'big' && --r.hp > 0){
+    r.kind = 'small'; r.w = 22; r.h = 16;
+    G.addScore(50); popup(r.x - G.dist, sy - 26, '50', P.gold);
+  } else {
+    const pts = (r.kind === 'mine') ? 150 : 100;
+    G.rocks.splice(index,1);
+    G.addScore(pts); popup(r.x - G.dist, sy - 22, ''+pts, P.gold);
+    if (r.kind === 'mine') spark(r.x - G.dist, sy - 6, 14, P.red, 3.0, 32);
+  }
+}
+
+function killAlien(index, a){
+  const G = Game;
+  G.aliens.splice(index,1);
+  Snd.ufoHit();
+  spark(a.x - G.dist, a.y - 10, 20, P.alien, 3.6, 42);
+  G.addScore(300); popup(a.x - G.dist, a.y - 22, '300', P.alien);
+}
+
+/* =========================================================================
+   UFO SQUADRONS  — they strafe overhead and bomb the surface,
+   each hit blasting a fresh crater into the road ahead of you.
+   ========================================================================= */
+function stepUfos(wx, b){
+  const G = Game;
+
+  if (--G.ufoTimer <= 0){
+    const n = 2 + Math.floor(Math.random()*2 + G.lap*0.4);
+    const baseY = 84 + Math.random()*54;
+    for (let i=0;i<n;i++){
+      G.ufos.push({
+        x: G.dist + W + 60 + i*54,
+        y: baseY + Math.sin(i)*10,
+        y0: baseY + Math.sin(i)*10,
+        vx: -(1.7 + Math.random()*0.9 + G.lap*0.25),
+        ph: Math.random()*6.28,
+        cool: 40 + Math.random()*90
+      });
+    }
+    G.ufoTimer = 520 + Math.random()*430 - G.lap*60;
+    if (G.ufoTimer < 230) G.ufoTimer = 230;
+  }
+
+  for (let i=G.ufos.length-1;i>=0;i--){
+    const u = G.ufos[i];
+    u.ph += 0.055;
+    u.x += u.vx + G.speed*0.22;
+    u.y  = u.y0 + Math.sin(u.ph)*13;
+
+    const sx = u.x - G.dist;
+    if (sx < -70){ G.ufos.splice(i,1); continue; }
+
+    // bomb the road a little ahead of the buggy
+    if (--u.cool <= 0 && sx > BUGGY_X + 30 && sx < W - 30){
+      G.bombs.push({ x:u.x, y:u.y + 8, vy:1.4 });
+      u.cool = 150 + Math.random()*170;
+      Snd.drop();
+    }
+  }
+
+  for (let i=G.bombs.length-1;i>=0;i--){
+    const m = G.bombs[i];
+    m.vy += 0.13; m.y += m.vy;
+    const sy = surfaceAt(m.x);
+    if (m.y >= (sy === null ? GROUND_Y + 30 : sy)){
+      // impact — blow a new crater
+      if (sy !== null){
+        const c = mkCrater(m.x, 52 + Math.random()*26);
+        c.fresh = 26;
+        G.craters.push(c);
+        for (let j=G.rocks.length-1;j>=0;j--)
+          if (Math.abs(G.rocks[j].x - m.x) < c.w*0.5) G.rocks.splice(j,1);
+      }
+      spark(m.x - G.dist, GROUND_Y - 4, 16, P.flame, 3.2, 34);
+      Snd.hitRock();
+      G.bombs.splice(i,1);
+      continue;
+    }
+    if (m.x - G.dist < -30) G.bombs.splice(i,1);
+  }
+}
+
+/* =========================================================================
+   ALIEN CARS — one rolls in from the horizon, another creeps up
+   behind you and takes pot-shots along the ground.
+   ========================================================================= */
+function stepAliens(wx, b){
+  const G = Game;
+
+  if (--G.alienTimer <= 0){
+    const fromBehind = Math.random() < 0.45;
+    const s = surfaceAt(G.dist + (fromBehind ? -60 : W + 60));
+    G.aliens.push({
+      x: G.dist + (fromBehind ? -60 : W + 70),
+      y: (s === null ? GROUND_Y : s),
+      dir: fromBehind ? 1 : -1,
+      spd: fromBehind ? G.speed + 0.55 : 1.5 + Math.random()*0.8,
+      cool: fromBehind ? 90 : 999999,
+      wheel: 0, life: 900
+    });
+    G.alienTimer = 640 + Math.random()*520 - G.lap*70;
+    if (G.alienTimer < 300) G.alienTimer = 300;
+  }
+
+  for (let i=G.aliens.length-1;i>=0;i--){
+    const a = G.aliens[i];
+    a.x += (a.dir > 0) ? a.spd : -a.spd;
+    a.wheel += 0.3;
+
+    const s = surfaceAt(a.x);
+    a.y += ((s === null ? GROUND_Y + 26 : s) - a.y) * 0.25;
+
+    const sx = a.x - G.dist;
+    if (sx < -80 || sx > W + 160 || --a.life <= 0){ G.aliens.splice(i,1); continue; }
+
+    if (a.dir > 0 && --a.cool <= 0){
+      G.eshots.push({ x:a.x + 22, y:a.y - 12, vx:5.6 + G.speed });
+      a.cool = 140 + Math.random()*110;
+      Snd.fire();
+    }
+  }
+
+  for (let i=G.eshots.length-1;i>=0;i--){
+    const s = G.eshots[i];
+    s.x += s.vx;
+    if (s.x - G.dist > W + 30 || s.x - G.dist < -40){ G.eshots.splice(i,1); continue; }
+    if (Math.abs(s.x - wx) < HALF_W*0.7 &&
+        s.y > b.y - BODY_H - 8 && s.y < b.y + 2){
+      G.eshots.splice(i,1); crash('shot'); return;
+    }
+  }
+}
+
+/* =========================================================================
+   COLLISIONS with rocks / aliens / bombs
+   ========================================================================= */
+function stepCollisions(wx, b){
+  const G = Game;
+  if (b.inv > 0) return;
+
+  const bl = wx - HALF_W*0.78, br = wx + HALF_W*0.78;
+  const bt = b.y - BODY_H - 7,  bb = b.y + 2;
+
+  for (const r of G.rocks){
+    const sy = surfaceAt(r.x); if (sy === null) continue;
+    const rl = r.x - r.w*0.5, rr = r.x + r.w*0.5, rt = sy - r.h;
+    if (br > rl && bl < rr && bb > rt){ crash('rock'); return; }
+  }
+  for (const a of G.aliens){
+    if (br > a.x - 21 && bl < a.x + 21 && bb > a.y - 18 && bt < a.y + 2){ crash('alien'); return; }
+  }
+  for (const m of G.bombs){
+    if (br > m.x - 7 && bl < m.x + 7 && bb > m.y - 7 && bt < m.y + 7){ crash('bomb'); return; }
+  }
+}
+
+/* =========================================================================
+   CHECKPOINTS  —  A .. Z, with a speed bonus for a fast section
+   ========================================================================= */
+function stepCheckpoint(){
+  const G = Game;
+  const reached = Math.floor(G.dist / CP_LEN);
+  if (reached > G.cpIndex){
+    G.cpIndex  = reached;
+    G.cpDist   = reached * CP_LEN;
+    const bonus = Math.max(0, Math.round((3200 - G.sectionFrames*4)/10)*10);
+    G.sectionFrames = 0;
+    G.addScore(1000 + bonus);
+    Snd.cp();
+    G.flash = 4;
+    popup(BUGGY_X + 40, GROUND_Y - 70, '+' + (1000+bonus), '#8ef58e');
+
+    if (G.cpIndex >= 26){
+      G.state = 'clear'; G.timer = 240;
+      G.addScore(5000);
+      G.say('COURSE CLEARED   5000', 240, '#8ef58e');
+      Snd.bonus();
+    } else {
+      G.say('CHECKPOINT ' + LETTERS[G.cpIndex], 80, '#8ef58e');
+    }
+  }
+}
+
+/* drop anything that has scrolled well off the left edge */
+function cull(){
+  const G = Game, back = G.dist - 200;
+  for (let i=G.craters.length-1;i>=0;i--){ if (G.craters[i].fresh>0) G.craters[i].fresh--;
+                                           if (G.craters[i].x + 80 < back) G.craters.splice(i,1); }
+  for (let i=G.rocks.length-1;i>=0;i--)   if (G.rocks[i].x + 60 < back) G.rocks.splice(i,1);
+}
+
+/* =========================================================================
+   SCENERY HASH — fixed seed, so the skyline never changes between laps
+   ========================================================================= */
+function shash(i, salt){
+  let t = (i * 0x27D4EB2D + (salt|0) * 0x165667B1 + 0x9E3779B9) >>> 0;
+  t = Math.imul(t ^ (t >>> 15), 1 | t);
+  t ^= t + Math.imul(t ^ (t >>> 7), 61 | t);
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+}
+
+function text(str, x, y, size, col, align, shadow){
+  ctx.font = 'bold ' + size + 'px "Courier New",Consolas,monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'alphabetic';
+  if (shadow !== false){ ctx.fillStyle = '#000'; ctx.fillText(str, x+2, y+2); }
+  ctx.fillStyle = col;
+  ctx.fillText(str, x, y);
+}
+
+/* =========================================================================
+   PARALLAX LAYER 0 — sky, stars, planet
+   ========================================================================= */
+function drawSky(d){
+  const g = ctx.createLinearGradient(0, HUD_H, 0, GROUND_Y);
+  g.addColorStop(0.00, P.sky1);
+  g.addColorStop(0.55, P.sky2);
+  g.addColorStop(1.00, P.sky3);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, HUD_H, W, GROUND_Y - HUD_H);
+
+  /* stars — the slowest layer of all */
+  const off = d * 0.012, SP = 47;
+  const i0 = Math.floor((off - 20)/SP), i1 = Math.ceil((off + W + 20)/SP);
+  for (let i=i0;i<=i1;i++){
+    for (let k=0;k<3;k++){
+      const sx = i*SP - off + shash(i,k)*SP;
+      const sy = HUD_H + 4 + shash(i,k+9)*(GROUND_Y - HUD_H - 120);
+      const tw = shash(i,k+21);
+      const a  = 0.35 + 0.65*Math.abs(Math.sin(Game.tick*0.03 + tw*6.28));
+      ctx.globalAlpha = tw > 0.82 ? a : 0.55 + tw*0.4;
+      ctx.fillStyle = P.star;
+      const s = tw > 0.9 ? 2 : 1;
+      ctx.fillRect(sx|0, sy|0, s, s);
+    }
+  }
+  ctx.globalAlpha = 1;
+
+  /* a big ringed world hanging over the horizon */
+  const px = W - 122 - (d * 0.030) % (W + 900);
+  const pxw = px < -260 ? px + (W + 900) : px;
+  drawPlanet(pxw, 96, 46);
+}
+
+function drawPlanet(x, y, r){
+  if (x < -r*4 || x > W + r*4) return;
+  ctx.save();
+  ctx.beginPath(); ctx.arc(x, y, r, 0, 6.2832); ctx.fillStyle = P.planet; ctx.fill();
+  ctx.clip();
+  ctx.fillStyle = P.planetDk;
+  for (let i=0;i<5;i++){
+    const by = y - r + (i+0.5)*(r*2/5) + Math.sin(i*2.1)*3;
+    ctx.fillRect(x-r, by, r*2, 3 + (i%2)*4);
+  }
+  ctx.fillStyle = P.planetLt;
+  ctx.beginPath(); ctx.arc(x - r*0.34, y - r*0.34, r*0.62, 0, 6.2832); ctx.fill();
+  ctx.fillStyle = 'rgba(0,0,0,0.34)';
+  ctx.beginPath(); ctx.arc(x + r*0.42, y + r*0.30, r*0.95, 0, 6.2832); ctx.fill();
+  ctx.restore();
+
+  ctx.strokeStyle = 'rgba(196,150,170,0.55)'; ctx.lineWidth = 2;
+  ctx.save(); ctx.translate(x, y); ctx.rotate(-0.36); ctx.scale(1, 0.24);
+  ctx.beginPath(); ctx.arc(0, 0, r*1.62, 0, 6.2832); ctx.stroke(); ctx.restore();
+}
+
+/* =========================================================================
+   PARALLAX LAYER 1 & 2 — twin mountain ranges
+   ========================================================================= */
+function drawRange(d, par, spacing, baseY, hMin, hMax, col, salt, jag){
+  const off = d * par;
+  const i0 = Math.floor((off - spacing)/spacing), i1 = Math.ceil((off + W + spacing)/spacing);
+  ctx.fillStyle = col;
+  for (let i=i0;i<=i1;i++){
+    const x = i*spacing - off;
+    const h = hMin + shash(i,salt)*(hMax - hMin);
+    const w = spacing*(0.85 + shash(i,salt+3)*0.75);
+    ctx.beginPath();
+    ctx.moveTo(x - w*0.5, baseY);
+    if (jag){
+      ctx.lineTo(x - w*0.20, baseY - h*0.72);
+      ctx.lineTo(x - w*0.06, baseY - h*0.90);
+      ctx.lineTo(x + w*0.04, baseY - h);
+      ctx.lineTo(x + w*0.22, baseY - h*0.66);
+    } else {
+      ctx.lineTo(x, baseY - h);
+    }
+    ctx.lineTo(x + w*0.5, baseY);
+    ctx.closePath(); ctx.fill();
+  }
+  ctx.fillRect(0, baseY - 1, W, 3);
+}
+
+/* =========================================================================
+   PARALLAX LAYER 3 — the domed lunar colony
+   ========================================================================= */
+function drawCity(d){
+  const par = 0.34, SP = 74, baseY = GROUND_Y - 26, off = d * par;
+  const i0 = Math.floor((off - SP)/SP), i1 = Math.ceil((off + W + SP)/SP);
+
+  for (let i=i0;i<=i1;i++){
+    const x = i*SP - off;
+    const kind = shash(i,31);
+
+    if (kind < 0.42){
+      /* pressure dome with a mast */
+      const r = 20 + shash(i,32)*15;
+      ctx.fillStyle = P.domeB;
+      ctx.beginPath(); ctx.arc(x, baseY, r, Math.PI, 0); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = P.domeA;
+      ctx.beginPath(); ctx.arc(x, baseY, r, Math.PI*1.08, Math.PI*1.62); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = 'rgba(200,240,255,0.35)';
+      ctx.beginPath(); ctx.arc(x - r*0.32, baseY - r*0.30, r*0.28, 0, 6.2832); ctx.fill();
+      ctx.fillStyle = P.cityLt;
+      ctx.fillRect(x - 1, baseY - r - 13, 2, 13);
+      if ((Game.tick >> 4) % 2 === 0){ ctx.fillStyle = P.red; ctx.fillRect(x - 2, baseY - r - 16, 4, 3); }
+      ctx.fillStyle = P.city;
+      ctx.fillRect(x - r - 6, baseY - 6, (r+6)*2, 6);
+    } else {
+      /* habitation block */
+      const bw = 26 + shash(i,33)*26;
+      const bh = 30 + shash(i,34)*54;
+      ctx.fillStyle = P.city;
+      ctx.fillRect(x - bw*0.5, baseY - bh, bw, bh);
+      ctx.fillStyle = P.cityLt;
+      ctx.fillRect(x - bw*0.5, baseY - bh, bw, 3);
+      ctx.fillRect(x - bw*0.5, baseY - bh, 3, bh);
+      /* lit windows, a few flickering */
+      const cols = Math.max(1, Math.floor(bw/9)), rows = Math.max(1, Math.floor(bh/11));
+      for (let cx=0;cx<cols;cx++) for (let cy=0;cy<rows;cy++){
+        const q = shash(i*97 + cx*13 + cy*7, 35);
+        if (q < 0.42) continue;
+        const flick = q > 0.93 && ((Game.tick + (cx+cy)*17) >> 5) % 2 === 0;
+        ctx.fillStyle = flick ? P.city : P.win;
+        ctx.globalAlpha = flick ? 1 : 0.55 + q*0.45;
+        ctx.fillRect(x - bw*0.5 + 5 + cx*9, baseY - bh + 7 + cy*11, 4, 5);
+      }
+      ctx.globalAlpha = 1;
+      if (shash(i,36) > 0.6){
+        ctx.fillStyle = P.cityLt;
+        ctx.fillRect(x - 1, baseY - bh - 16, 2, 16);
+      }
+    }
+  }
+  /* connecting service tubes across the colony floor */
+  ctx.fillStyle = P.city;
+  ctx.fillRect(0, baseY - 4, W, 5);
+  ctx.fillStyle = P.cityLt;
+  ctx.fillRect(0, baseY - 4, W, 1);
+}
+
+/* =========================================================================
+   PARALLAX LAYER 4 — near ridge of rolling crater rims
+   ========================================================================= */
+function drawRidge(d){
+  const par = 0.56, SP = 58, baseY = GROUND_Y + 1, off = d*par;
+  const i0 = Math.floor((off - SP)/SP), i1 = Math.ceil((off + W + SP)/SP);
+  for (let i=i0;i<=i1;i++){
+    const x = i*SP - off;
+    const h = 12 + shash(i,41)*26;
+    const w = SP*(1.0 + shash(i,42)*0.6);
+    ctx.fillStyle = P.ridge2;
+    ctx.beginPath(); ctx.ellipse(x, baseY, w*0.62, h, 0, Math.PI, 0); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = P.ridge;
+    ctx.beginPath(); ctx.ellipse(x - w*0.10, baseY, w*0.45, h*0.80, 0, Math.PI, 0); ctx.closePath(); ctx.fill();
+  }
+  ctx.fillStyle = P.ridge2;
+  ctx.fillRect(0, baseY - 2, W, 4);
+}
+
+/* =========================================================================
+   FOREGROUND — the road surface itself (parallax 1.0)
+   ========================================================================= */
+function drawGround(d){
+  const g = ctx.createLinearGradient(0, GROUND_Y, 0, GND_BOT);
+  g.addColorStop(0, P.gMid); g.addColorStop(1, P.gLow);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, GROUND_Y, W, GND_BOT - GROUND_Y);
+
+  /* the sunlit crest of the surface, following the micro-relief */
+  ctx.fillStyle = P.gTop;
+  for (let x=0;x<W;x+=2){
+    const y = GROUND_Y + bumpAt(d + x);
+    ctx.fillRect(x, y - 2, 2, 3);
+  }
+
+  /* scrolling grit — this is what really sells the speed */
+  const SP = 26;
+  const i0 = Math.floor((d - SP)/SP), i1 = Math.ceil((d + W + SP)/SP);
+  for (let i=i0;i<=i1;i++){
+    for (let k=0;k<3;k++){
+      const wxp = i*SP + shash(i,50+k)*SP;
+      const sx  = wxp - d;
+      if (sx < -6 || sx > W+6) continue;
+      const depth = shash(i,60+k);
+      const sy = GROUND_Y + 8 + depth*(GND_BOT - GROUND_Y - 12);
+      ctx.fillStyle = depth > 0.5 ? P.gDark : P.gLow;
+      ctx.fillRect(sx|0, sy|0, (2 + (depth>0.75?2:0)), 2);
+    }
+  }
+  ctx.fillStyle = P.gDark;
+  ctx.fillRect(0, GND_BOT - 2, W, 2);
+}
+
+/* punch the craters through the surface */
+function drawCraters(d){
+  for (const c of Game.craters){
+    const sx = c.x - d, hw = c.w*0.5;
+    if (sx + hw < -10 || sx - hw > W + 10) continue;
+    const top = GROUND_Y + bumpAt(c.x) - 1;
+    const dep = Math.min(c.d, GND_BOT - top - 2);
+
+    ctx.fillStyle = P.hole;
+    ctx.beginPath();
+    ctx.moveTo(sx - hw, top);
+    ctx.lineTo(sx - hw*0.55, top + dep);
+    ctx.lineTo(sx + hw*0.55, top + dep);
+    ctx.lineTo(sx + hw, top);
+    ctx.closePath(); ctx.fill();
+    ctx.fillRect(sx - hw*0.55, top + dep - 1, hw*1.1, GND_BOT - (top+dep) + 1);
+
+    /* lit inner wall on the left, rim highlights on both lips */
+    ctx.fillStyle = 'rgba(140,130,105,0.30)';
+    ctx.beginPath();
+    ctx.moveTo(sx - hw, top); ctx.lineTo(sx - hw*0.55, top + dep);
+    ctx.lineTo(sx - hw*0.30, top + dep); ctx.lineTo(sx - hw*0.62, top);
+    ctx.closePath(); ctx.fill();
+
+    ctx.fillStyle = c.fresh > 0 ? P.flame : P.gTop;
+    ctx.fillRect(sx - hw - 3, top - 3, 7, 3);
+    ctx.fillRect(sx + hw - 4, top - 3, 7, 3);
+    if (c.fresh > 0){
+      ctx.globalAlpha = c.fresh/26;
+      ctx.fillStyle = P.flame;
+      ctx.fillRect(sx - hw, top, c.w, 3);
+      ctx.globalAlpha = 1;
+    }
+  }
+}
+
+function drawRocks(d){
+  for (const r of Game.rocks){
+    const sy = surfaceAt(r.x); if (sy === null) continue;
+    const sx = r.x - d;
+    if (sx < -40 || sx > W + 40) continue;
+
+    if (r.kind === 'mine'){
+      ctx.fillStyle = '#2e2e3c';
+      ctx.beginPath(); ctx.arc(sx, sy - 6, 7, 0, 6.2832); ctx.fill();
+      ctx.strokeStyle = '#2e2e3c'; ctx.lineWidth = 2;
+      for (let a=0;a<6;a++){
+        const an = a*1.047 + Math.PI;
+        ctx.beginPath(); ctx.moveTo(sx + Math.cos(an)*6, sy - 6 + Math.sin(an)*6);
+        ctx.lineTo(sx + Math.cos(an)*10, sy - 6 + Math.sin(an)*10); ctx.stroke();
+      }
+      const pulse = (Game.tick >> 3) % 2 === 0;
+      ctx.fillStyle = pulse ? P.red : '#7a1d18';
+      ctx.fillRect(sx - 2, sy - 9, 4, 4);
+      ctx.fillStyle = P.gDark; ctx.fillRect(sx - 8, sy - 1, 16, 2);
+      continue;
+    }
+
+    const w = r.w, h = r.h, bx = sx - w*0.5, by = sy - h;
+    ctx.fillStyle = P.rockD;
+    ctx.beginPath();
+    ctx.moveTo(bx, sy); ctx.lineTo(bx + w*0.16, by + h*0.22);
+    ctx.lineTo(bx + w*0.48, by); ctx.lineTo(bx + w*0.82, by + h*0.30);
+    ctx.lineTo(bx + w, sy); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = P.rock;
+    ctx.beginPath();
+    ctx.moveTo(bx + w*0.10, sy); ctx.lineTo(bx + w*0.22, by + h*0.30);
+    ctx.lineTo(bx + w*0.48, by + h*0.06); ctx.lineTo(bx + w*0.60, sy);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = P.rockL;
+    ctx.beginPath();
+    ctx.moveTo(bx + w*0.26, by + h*0.34); ctx.lineTo(bx + w*0.47, by + h*0.10);
+    ctx.lineTo(bx + w*0.53, by + h*0.40); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.fillRect(bx + w*0.1, sy - 1, w*0.95, 2);
+  }
+}
+
+/* =========================================================================
+   THE LUNAR BUGGY
+   ========================================================================= */
+function drawBuggy(d){
+  const G = Game, b = G.buggy;
+  if (b.inv > 0 && (G.tick >> 2) % 2 === 0) return;
+
+  const cx = BUGGY_X;
+  const cy = b.y - (b.air ? 0 : b.hop*0.4);
+  const offs = [-19,-7,7,19];
+
+  /* independent wheel travel over the micro-relief */
+  const wy = [];
+  for (let i=0;i<4;i++){
+    if (b.air) wy.push(cy);
+    else {
+      const s = surfaceAt(d + BUGGY_X + offs[i]);
+      wy.push(s === null ? cy + 4 : Math.max(cy - 4, Math.min(cy + 4, s)));
+    }
+  }
+
+  /* --- shadow on the surface --- */
+  if (!b.air){
+    ctx.fillStyle = 'rgba(0,0,0,0.32)';
+    ctx.beginPath(); ctx.ellipse(cx, cy + 5, 27, 4, 0, 0, 6.2832); ctx.fill();
+  }
+
+  /* --- suspension legs + wheels (drawn unrotated, they follow terrain) --- */
+  for (let i=0;i<4;i++){
+    const wxp = cx + offs[i]*Math.cos(b.tilt), wyp = wy[i] - 7;
+    ctx.strokeStyle = P.hullS; ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(cx + offs[i]*0.82, cy - 9);
+    ctx.lineTo(wxp, wyp);
+    ctx.stroke();
+
+    ctx.fillStyle = P.tyre;
+    ctx.beginPath(); ctx.arc(wxp, wyp, 7, 0, 6.2832); ctx.fill();
+    ctx.fillStyle = P.hub;
+    ctx.beginPath(); ctx.arc(wxp, wyp, 3.2, 0, 6.2832); ctx.fill();
+    /* spokes so the wheels visibly spin */
+    ctx.strokeStyle = P.hub; ctx.lineWidth = 1.4;
+    for (let k=0;k<3;k++){
+      const a = b.wheel + k*2.094;
+      ctx.beginPath();
+      ctx.moveTo(wxp + Math.cos(a)*2.4, wyp + Math.sin(a)*2.4);
+      ctx.lineTo(wxp + Math.cos(a)*6.0, wyp + Math.sin(a)*6.0);
+      ctx.stroke();
+    }
+  }
+
+  /* --- hull --- */
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(b.tilt);
+
+  ctx.fillStyle = P.hullS;
+  ctx.fillRect(-22, -11, 44, 5);
+
+  ctx.fillStyle = P.hull;
+  ctx.beginPath();
+  ctx.moveTo(-24, -9); ctx.lineTo(-24, -19); ctx.lineTo(-8, -21);
+  ctx.lineTo(14, -19);  ctx.lineTo(24, -13);  ctx.lineTo(24, -9);
+  ctx.closePath(); ctx.fill();
+
+  ctx.fillStyle = P.hullD;
+  ctx.beginPath();
+  ctx.moveTo(14, -19); ctx.lineTo(24, -13); ctx.lineTo(24, -9); ctx.lineTo(14, -9);
+  ctx.closePath(); ctx.fill();
+
+  ctx.fillStyle = P.blue;  ctx.fillRect(-24, -15, 40, 3);
+  ctx.fillStyle = P.red;   ctx.fillRect(-24, -12, 40, 2);
+  ctx.fillStyle = P.blueD; ctx.fillRect(-24, -19, 12, 3);
+
+  /* cockpit canopy + pilot */
+  ctx.fillStyle = P.domeA;
+  ctx.beginPath(); ctx.ellipse(-10, -21, 9, 8, 0, Math.PI, 0); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = 'rgba(220,245,255,0.45)';
+  ctx.beginPath(); ctx.ellipse(-13, -23, 3.4, 3.0, 0, Math.PI, 0); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#12203a';
+  ctx.beginPath(); ctx.arc(-9, -23, 3.1, 0, 6.2832); ctx.fill();
+
+  /* forward gun */
+  ctx.fillStyle = P.hullS;  ctx.fillRect(16, -15, 14, 4);
+  ctx.fillStyle = P.hullD;  ctx.fillRect(28, -15, 4, 4);
+  /* upward gun */
+  ctx.fillStyle = P.hullS;  ctx.fillRect(4, -30, 4, 11);
+  ctx.fillStyle = P.hullD;  ctx.fillRect(3, -32, 6, 3);
+
+  /* rear thruster glow when you are on the throttle */
+  if (held.right && !b.air){
+    const f = 4 + Math.random()*5;
+    ctx.fillStyle = P.flame;
+    ctx.beginPath();
+    ctx.moveTo(-24, -15); ctx.lineTo(-24 - f, -13); ctx.lineTo(-24, -11);
+    ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawExplosion(){
+  const G = Game;
+  const t = 110 - G.timer;
+  if (t > 46) return;
+  const r = 8 + t*1.5;
+  const cx = BUGGY_X, cy = G.buggy.y - 12;
+  ctx.globalAlpha = Math.max(0, 1 - t/46);
+  ctx.fillStyle = P.flame;
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, 6.2832); ctx.fill();
+  ctx.fillStyle = '#ffe27a';
+  ctx.beginPath(); ctx.arc(cx, cy, r*0.55, 0, 6.2832); ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(cx, cy, r*0.22, 0, 6.2832); ctx.fill();
+  ctx.globalAlpha = 1;
+}
+
+/* =========================================================================
+   ENEMIES + SHOTS
+   ========================================================================= */
+function drawUfos(d){
+  for (const u of Game.ufos){
+    const x = u.x - d, y = u.y;
+    if (x < -50 || x > W + 50) continue;
+    ctx.fillStyle = P.ufoD;
+    ctx.beginPath(); ctx.ellipse(x, y + 3, 20, 6, 0, 0, 6.2832); ctx.fill();
+    ctx.fillStyle = P.ufo;
+    ctx.beginPath(); ctx.ellipse(x, y, 20, 5, 0, 0, 6.2832); ctx.fill();
+    ctx.fillStyle = P.domeA;
+    ctx.beginPath(); ctx.ellipse(x, y - 3, 9, 8, 0, Math.PI, 0); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(230,250,255,0.5)';
+    ctx.beginPath(); ctx.arc(x - 3, y - 6, 2.6, 0, 6.2832); ctx.fill();
+    for (let i=-2;i<=2;i++){
+      const on = ((Game.tick>>2) + i + 5) % 5 === 0;
+      ctx.fillStyle = on ? P.gold : P.ufoD;
+      ctx.fillRect(x + i*7 - 1, y + 3, 3, 3);
+    }
+  }
+  ctx.fillStyle = P.red;
+  for (const m of Game.bombs){
+    const x = m.x - d;
+    ctx.beginPath(); ctx.ellipse(x, m.y, 4, 6, 0, 0, 6.2832); ctx.fill();
+    ctx.fillStyle = P.flame; ctx.fillRect(x - 2, m.y - 8, 4, 3);
+    ctx.fillStyle = P.red;
+  }
+}
+
+function drawAliens(d){
+  for (const a of Game.aliens){
+    const x = a.x - d, y = a.y;
+    if (x < -60 || x > W + 60) continue;
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.beginPath(); ctx.ellipse(x, y + 4, 21, 3, 0, 0, 6.2832); ctx.fill();
+
+    ctx.fillStyle = P.alienD;
+    ctx.beginPath();
+    ctx.moveTo(x - 19, y - 6);  ctx.lineTo(x - 13, y - 17);
+    ctx.lineTo(x + 11, y - 17); ctx.lineTo(x + 19, y - 6);
+    ctx.closePath(); ctx.fill();
+
+    ctx.fillStyle = P.alien;
+    ctx.fillRect(x - 17, y - 12, 32, 5);
+    ctx.fillStyle = '#0d2a18';
+    ctx.fillRect(x - 10, y - 16, 13, 4);
+    const eye = ((Game.tick>>3)%2===0) ? P.red : '#7a1d18';
+    ctx.fillStyle = eye; ctx.fillRect(x + (a.dir>0? 8 : -14), y - 15, 5, 3);
+
+    ctx.fillStyle = P.tyre;
+    for (const o of [-12, 12]){
+      ctx.beginPath(); ctx.arc(x + o, y - 4, 6, 0, 6.2832); ctx.fill();
+    }
+    ctx.fillStyle = P.alien;
+    for (const o of [-12, 12]){
+      ctx.beginPath(); ctx.arc(x + o, y - 4, 2.4, 0, 6.2832); ctx.fill();
+    }
+  }
+}
+
+function drawShots(d){
+  const G = Game;
+  ctx.fillStyle = P.shot;
+  for (const s of G.bullets) ctx.fillRect(s.x - d, s.y - 1, 9, 3);
+  for (const s of G.upshots) ctx.fillRect(s.x - d - 1, s.y, 3, 9);
+  ctx.fillStyle = P.red;
+  for (const s of G.eshots)  ctx.fillRect(s.x - d, s.y - 1, 9, 3);
+}
+
+function drawParticles(d){
+  for (const p of Game.parts){
+    ctx.globalAlpha = Math.min(1, p.life/22);
+    ctx.fillStyle = p.col;
+    ctx.fillRect(p.x|0, p.y|0, 3, 3);
+  }
+  ctx.globalAlpha = 1;
+  for (const p of Game.pops){
+    ctx.globalAlpha = Math.min(1, p.t/24);
+    text(p.text, p.x, p.y, 12, p.col, 'center');
+    ctx.globalAlpha = 1;
+  }
+}
+
+/* =========================================================================
+   HUD + COURSE BAR
+   ========================================================================= */
+function drawHud(){
+  const G = Game;
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, W, HUD_H);
+  ctx.fillStyle = '#1d2440';
+  ctx.fillRect(0, HUD_H - 2, W, 2);
+
+  text('SCORE ' + String(G.score).padStart(6,'0'), 8, 18, 15, P.gold);
+  text('HI ' + String(G.hi).padStart(6,'0'), W/2, 18, 15, '#9fd4ff', 'center');
+
+  /* remaining buggies */
+  for (let i=0;i<Math.min(G.lives, 6);i++){
+    const x = W - 18 - i*24, y = 13;
+    ctx.fillStyle = P.hull;  ctx.fillRect(x - 9, y - 5, 18, 5);
+    ctx.fillStyle = P.blue;  ctx.fillRect(x - 9, y - 5, 18, 2);
+    ctx.fillStyle = P.tyre;
+    for (const o of [-6,-2,2,6]){ ctx.beginPath(); ctx.arc(x + o, y + 2, 2.4, 0, 6.2832); ctx.fill(); }
+  }
+  if (G.lives > 6) text('x' + G.lives, W - 170, 18, 13, P.hull);
+}
+
+function drawCourseBar(){
+  const G = Game;
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, BAR_Y - 2, W, H - BAR_Y + 2);
+  ctx.fillStyle = '#1d2440';
+  ctx.fillRect(0, BAR_Y - 2, W, 2);
+
+  const x0 = 30, x1 = W - 30, span = x1 - x0, cell = span/26;
+  const frac = Math.max(0, Math.min(1, G.dist / (CP_LEN*26)));
+
+  /* top line: which lap you are on, and how fast you are going */
+  text('COURSE ' + (G.lap + 1), 6, BAR_Y + 9, 11, '#6f7fa8', 'left', false);
+  text(Math.round(G.speed * 46) + ' KPH', W - 6, BAR_Y + 9, 11, '#6f7fa8', 'right', false);
+
+  /* your position marker, riding above the letters */
+  const mx = x0 + span*frac;
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.moveTo(mx, BAR_Y + 20); ctx.lineTo(mx - 5, BAR_Y + 13); ctx.lineTo(mx + 5, BAR_Y + 13);
+  ctx.closePath(); ctx.fill();
+
+  /* the A..Z checkpoint run */
+  for (let i=0;i<26;i++){
+    const cxp = x0 + i*cell + cell*0.5;
+    const done = i < G.cpIndex;
+    const cur  = i === G.cpIndex;
+    const col  = done ? P.gold : (cur ? ((G.tick>>3)%2 ? '#fff' : P.gold) : '#4a5578');
+    text(LETTERS[i], cxp, BAR_Y + 32, 11, col, 'center', false);
+  }
+
+  /* progress rail */
+  ctx.fillStyle = '#1a1f33';
+  ctx.fillRect(x0, BAR_Y + 35, span, 4);
+  ctx.fillStyle = '#2f6ce8';
+  ctx.fillRect(x0, BAR_Y + 35, span*frac, 4);
+  ctx.fillStyle = P.gold;
+  ctx.fillRect(x0, BAR_Y + 35, span*(G.cpIndex/26), 4);
+}
+
+/* =========================================================================
+   FRAME COMPOSITION — back layer to front layer
+   ========================================================================= */
+function render(){
+  const G = Game, d = G.dist;
+
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.save();
+  if (G.shake > 0){
+    ctx.translate((Math.random()-0.5)*G.shake*0.55, (Math.random()-0.5)*G.shake*0.45);
+  }
+
+  drawSky(d);                                                   // 0.012 / 0.030
+  drawRange(d, 0.10, 118, GROUND_Y - 54, 46, 104, P.farM2, 11, true);   // far peaks
+  drawRange(d, 0.20,  92, GROUND_Y - 34, 34,  78, P.farM,  21, true);   // near peaks
+  drawCity(d);                                                  // 0.34
+  drawRidge(d);                                                 // 0.56
+  drawGround(d);                                                // 1.00
+  drawCraters(d);
+  drawRocks(d);
+  drawAliens(d);
+  drawUfos(d);
+  drawShots(d);
+
+  if (G.state === 'dying') drawExplosion();
+  else if (G.state !== 'over') drawBuggy(d);
+
+  drawParticles(d);
+
+  /* a wisp of dust blowing past in front of everything (parallax > 1) */
+  ctx.globalAlpha = 0.30;
+  ctx.fillStyle = '#cbbfa4';
+  const FSP = 96, foff = d * 1.55;
+  for (let i=Math.floor((foff-FSP)/FSP); i<=Math.ceil((foff+W)/FSP); i++){
+    const fx = i*FSP - foff + shash(i,71)*FSP;
+    const fy = GROUND_Y + 6 + shash(i,72)*(GND_BOT-GROUND_Y-10);
+    ctx.fillRect(fx|0, fy|0, 10 + shash(i,73)*14, 2);
+  }
+  ctx.globalAlpha = 1;
+
+  ctx.restore();
+
+  drawHud();
+  drawCourseBar();
+
+  if (G.flash > 0){
+    ctx.globalAlpha = G.flash/8;
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, HUD_H, W, GND_BOT - HUD_H);
+    ctx.globalAlpha = 1;
+  }
+
+  if (G.msg && G.state !== 'over'){
+    text(G.msg, W/2, 168, 22, G.msgC, 'center');
+  }
+
+  if (G.state === 'title')  drawTitle();
+  if (G.state === 'pause')  drawPause();
+  if (G.state === 'over')   drawOver();
+}
+
+function shade(a){
+  ctx.fillStyle = 'rgba(0,0,10,' + a + ')';
+  ctx.fillRect(0, HUD_H, W, GND_BOT - HUD_H);
+}
+
+function drawTitle(){
+  shade(0.58);
+  const y = 118;
+  /* chunky title with a coloured drop shadow */
+  ctx.textAlign = 'center';
+  text('MOON', W/2, y, 60, '#0a1a3a', 'center', false);
+  text('MOON', W/2 - 3, y - 3, 60, P.gold, 'center', false);
+  text('PATROL', W/2, y + 54, 60, '#0a1a3a', 'center', false);
+  text('PATROL', W/2 - 3, y + 51, 60, '#7fd4ff', 'center', false);
+
+  text('DRIVE THE LUNAR BUGGY FROM  A  TO  Z', W/2, y + 92, 15, '#cfe6ff', 'center');
+  if ((Game.tick >> 4) % 2 === 0)
+    text('PRESS  FIRE  TO  START', W/2, y + 122, 20, P.gold, 'center');
+
+  text('◀ ▶  SPEED     SPACE / ▲  JUMP     Z / X  FIRE', W/2, GND_BOT - 14, 13, '#8fa6c9', 'center');
+}
+
+function drawPause(){
+  shade(0.6);
+  text('PAUSED', W/2, 178, 40, P.gold, 'center');
+  text('PRESS  P  TO  RESUME', W/2, 212, 15, '#cfe6ff', 'center');
+}
+
+function drawOver(){
+  shade(0.65);
+  text('GAME OVER', W/2, 168, 46, P.red, 'center');
+  text('SCORE  ' + String(Game.score).padStart(6,'0'), W/2, 204, 18, P.gold, 'center');
+  if (Game.score >= Game.hi && Game.score > 0)
+    text('NEW  HIGH  SCORE!', W/2, 228, 16, '#8ef58e', 'center');
+  if ((Game.tick >> 4) % 2 === 0)
+    text('PRESS  FIRE  TO  PLAY  AGAIN', W/2, 258, 16, '#cfe6ff', 'center');
+}
+
+/* =========================================================================
+   ATTRACT MODE — keep the parallax rolling behind the menus
+   ========================================================================= */
+function idleScroll(){
+  const G = Game;
+  G.tick++;
+  G.dist += 1.15;
+  G.generate(G.dist + W + 420);
+  G.buggy.y = GROUND_Y + bumpAt(G.dist + BUGGY_X);
+  G.buggy.wheel += 0.16;
+  stepParticles();
+  cull();
+}
+
+/* =========================================================================
+   MAIN LOOP — fixed 60 Hz physics, decoupled from the display refresh
+   ========================================================================= */
+let acc = 0, last = performance.now();
+const DT = 1000/60;
+
+function frame(now){
+  requestAnimationFrame(frame);
+  let dt = now - last; last = now;
+  if (dt > 250) dt = 250;           // tab was hidden — do not fast-forward
+  acc += dt;
+  let guard = 0;
+  while (acc >= DT && guard++ < 6){
+    acc -= DT;
+    if (Game.state === 'play' || Game.state === 'dying' || Game.state === 'clear') step();
+    else if (Game.state === 'title' || Game.state === 'over') idleScroll();
+    else Game.tick++;               // paused
+  }
+  render();
+}
+
+/* =========================================================================
+   UI BUTTONS
+   ========================================================================= */
+const muteBtn = document.getElementById('mute');
+function toggleMute(){
+  Snd.on = !Snd.on;
+  muteBtn.textContent = 'SOUND: ' + (Snd.on ? 'ON' : 'OFF');
+}
+muteBtn.addEventListener('click', ()=>{ Snd.init(); Snd.resume(); toggleMute(); cv.focus(); });
+
+document.getElementById('full').addEventListener('click', ()=>{
+  const el = document.getElementById('cab');
+  if (!document.fullscreenElement) el.requestFullscreen && el.requestFullscreen();
+  else document.exitFullscreen();
+});
+
+cv.addEventListener('mousedown', ()=>{ Snd.init(); Snd.resume();
+  if (Game.state==='title' || Game.state==='over') Game.start(); });
+
+/* =========================================================================
+   BOOT
+   ========================================================================= */
+Game.reset(true);
+Game.state = 'title';
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

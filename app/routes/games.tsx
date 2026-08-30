@@ -123,6 +123,30 @@ const GAMES: GameCard[] = [
 		tint: "#2DD4BF",
 		art: <DoodleArt />,
 	},
+	{
+		id: "bug-blaster",
+		title: "Bug Blaster",
+		tagline: "Retro arcade",
+		blurb:
+			"A mushroom field, a many-segment crawler winding down toward you, and one shot on screen at a time. Split it, clear it, and survive as the waves speed up.",
+		players: "Play alone",
+		modes: "Keyboard \u00b7 No room needed",
+		href: "/bug-blaster",
+		tint: "#F87171",
+		art: <BlasterArt />,
+	},
+	{
+		id: "moon-patrol",
+		title: "Moon Patrol",
+		tagline: "Retro arcade",
+		blurb:
+			"Drive a moon buggy over craters and mines while UFOs strafe from above. Jump, shoot forward and up at once, and see how far along the lunar surface you can get.",
+		players: "Play alone",
+		modes: "Keyboard \u00b7 No room needed",
+		href: "/moon-patrol",
+		tint: "#C084FC",
+		art: <MoonArt />,
+	},
 ];
 
 export default function Games({ loaderData }: Route.ComponentProps) {
@@ -435,6 +459,45 @@ function DoodleArt() {
 			<circle cx="98" cy="34" r="9" fill="#FACC15" />
 			<path d="M92 62l6-10 6 10Z" fill="#38BDF8" />
 			<circle cx="46" cy="26" r="6" fill="#FB923C" />
+		</svg>
+	);
+}
+
+function BlasterArt() {
+	return (
+		<svg width="150" height="92" viewBox="0 0 150 92" fill="none" aria-hidden>
+			<rect x="22" y="8" width="106" height="76" rx="8" fill="#0A0A0A" stroke="#2E2E2E" />
+			<circle cx="52" cy="30" r="7" fill="#F87171" />
+			<circle cx="66" cy="30" r="7" fill="#F87171" />
+			<circle cx="80" cy="30" r="7" fill="#F87171" />
+			<circle cx="94" cy="30" r="7" fill="#FACC15" />
+			<circle cx="98" cy="28" r="1.6" fill="#0A0A0A" />
+			<path d="M38 46a5 5 0 0 1 10 0Z" fill="#4ADE80" />
+			<rect x="41.5" y="46" width="3" height="4" fill="#DCFCE7" />
+			<path d="M104 50a5 5 0 0 1 10 0Z" fill="#4ADE80" />
+			<rect x="107.5" y="50" width="3" height="4" fill="#DCFCE7" />
+			<path d="M70 78l-6 -0.5 6 -12 6 12Z" fill="#FACC15" />
+			<rect x="69" y="52" width="2.4" height="8" fill="#FFFFFF" />
+		</svg>
+	);
+}
+
+function MoonArt() {
+	return (
+		<svg width="150" height="92" viewBox="0 0 150 92" fill="none" aria-hidden>
+			<rect x="22" y="8" width="106" height="76" rx="8" fill="#0A0A0A" stroke="#2E2E2E" />
+			<circle cx="112" cy="24" r="8" fill="#E9D5FF" opacity="0.9" />
+			<circle cx="38" cy="20" r="1.4" fill="#FFFFFF" opacity="0.8" />
+			<circle cx="58" cy="16" r="1.2" fill="#FFFFFF" opacity="0.6" />
+			<circle cx="86" cy="20" r="1.3" fill="#FFFFFF" opacity="0.7" />
+			<path d="M52 34l4 6h-8l4 -6Z" fill="#F87171" />
+			<ellipse cx="52" cy="33" rx="7" ry="3" fill="#C084FC" />
+			<path d="M26 66h20l4 -6h16l4 6h34" stroke="#C084FC" strokeWidth="3" strokeLinecap="round" fill="none" />
+			<path d="M104 66c2 -5 6 -5 8 0" stroke="#C084FC" strokeWidth="3" strokeLinecap="round" fill="none" />
+			<rect x="60" y="48" width="22" height="9" rx="4" fill="#FACC15" />
+			<rect x="76" y="43" width="8" height="6" rx="2" fill="#FACC15" />
+			<circle cx="65" cy="60" r="4.5" fill="#2E2E2E" stroke="#9CA3AF" strokeWidth="1.6" />
+			<circle cx="77" cy="60" r="4.5" fill="#2E2E2E" stroke="#9CA3AF" strokeWidth="1.6" />
 		</svg>
 	);
 }
