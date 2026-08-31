@@ -75,13 +75,42 @@ function spawnMushrooms(state: GameState) {
 	}
 }
 
+/** Chains grow with the wave, so later rounds are a bigger target to clear. */
+function chainLengthFor(wave: number): number {
+	return Math.min(20, 10 + Math.floor((wave - 1) * 1.5));
+}
+
+/** Crawl speed: still eases off, but far later than the old wave-8 ceiling. */
+function tickMsFor(wave: number): number {
+	return Math.max(35, 140 - (wave - 1) * 8);
+}
+
 function spawnChain(state: GameState) {
 	const segs: Segment[] = [];
-	const len = 10;
+	const len = chainLengthFor(state.wave);
 	for (let i = 0; i < len; i++) {
 		segs.push({ col: Math.floor(COLS / 2) + i, row: 0 });
 	}
 	state.chains.push({ segments: segs, dir: -1, vertical: 1 });
+}
+
+/**
+ * Extra mushrooms seeded each wave. More clutter means the chain drops
+ * toward you sooner and your shots have more to chew through.
+ */
+function seedExtraMushrooms(state: GameState) {
+	const extra = Math.min(24, (state.wave - 1) * 3);
+	let placed = 0;
+	let guard = 0;
+	while (placed < extra && guard++ < 400) {
+		const col = Math.floor(Math.random() * COLS);
+		const row = 1 + Math.floor(Math.random() * (ROWS - PLAYER_ZONE_ROWS - 2));
+		const k = mkey(col, row);
+		if (!state.mushrooms.has(k)) {
+			state.mushrooms.set(k, { col, row, hp: 4 });
+			placed++;
+		}
+	}
 }
 
 function resetPlayer(state: GameState) {
@@ -101,7 +130,7 @@ function newGame(): GameState {
 		score: 0,
 		lives: 3,
 		wave: 1,
-		tickMs: 140,
+		tickMs: tickMsFor(1),
 		lastTick: 0,
 		over: false,
 		started: true,
@@ -310,8 +339,9 @@ export default function BugBlaster({}: Route.ComponentProps) {
 			// wave cleared
 			if (state.chains.length === 0 || state.chains.every((c) => c.segments.length === 0)) {
 				state.wave += 1;
-				state.tickMs = Math.max(60, 140 - state.wave * 10);
+				state.tickMs = tickMsFor(state.wave);
 				state.chains = [];
+				seedExtraMushrooms(state);
 				spawnChain(state);
 			}
 		}

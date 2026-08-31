@@ -259,10 +259,12 @@ export default function GalaxySwarm({}: Route.ComponentProps) {
 			// dive scheduling — more frequent as the wave thins and waves rise
 			state.diveTimer += dt;
 			const aliveCount = state.enemies.filter((e) => e.alive).length;
-			const interval = Math.max(600, state.diveEveryMs - state.wave * 150 - (45 - aliveCount) * 20);
+			const interval = Math.max(260, state.diveEveryMs - state.wave * 150 - (45 - aliveCount) * 20);
 			if (state.diveTimer >= interval) {
 				state.diveTimer = 0;
-				startDive(state);
+				// later waves send raiders down in pairs, then threes
+				const sortie = 1 + Math.floor((state.wave - 1) / 4);
+				for (let i = 0; i < Math.min(4, sortie); i++) startDive(state);
 			}
 
 			// enemies
@@ -280,11 +282,12 @@ export default function GalaxySwarm({}: Route.ComponentProps) {
 					e.y = e.diveStartY + (H + 50 - e.diveStartY) * t * t;
 
 					// occasional aimed shot on the way down
-					if (Math.random() < 0.0025 * dt && e.y < H - 160) {
+					const shotChance = Math.min(0.008, 0.0025 + (state.wave - 1) * 0.0006);
+					if (Math.random() < shotChance * dt && e.y < H - 160) {
 						const dx = state.playerX - e.x;
 						const dy = H - 60 - e.y;
 						const len = Math.hypot(dx, dy) || 1;
-						const v = 0.22;
+						const v = Math.min(0.42, 0.22 + (state.wave - 1) * 0.02);
 						state.enemyBullets.push({ x: e.x, y: e.y, vx: (dx / len) * v, vy: (dy / len) * v });
 					}
 
