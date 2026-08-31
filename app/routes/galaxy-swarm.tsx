@@ -30,6 +30,8 @@ const ENEMY_COLS = 9;
 const SLOT_W = 48;
 const SLOT_H = 40;
 const FORM_TOP = 70;
+const FIRE_EVERY_MS = 130;  // hold to shoot: one shot per this many ms
+const MAX_BULLETS = 6;      // ceiling so a held key can't blanket the screen
 
 type EnemyState = "formation" | "diving";
 
@@ -68,6 +70,7 @@ type GameState = {
 	over: boolean;
 	started: boolean;
 	lastFrame: number;
+	lastShot: number;
 };
 
 function formationX(col: number, sway: number): number {
@@ -129,6 +132,7 @@ function newGame(): GameState {
 		over: false,
 		started: true,
 		lastFrame: 0,
+		lastShot: 0,
 	};
 	spawnWave(state);
 	return state;
@@ -238,12 +242,10 @@ export default function GalaxySwarm({}: Route.ComponentProps) {
 			if (keysRef.current["ArrowRight"]) state.playerX += speed;
 			state.playerX = Math.max(24, Math.min(W - 24, state.playerX));
 
-			// shooting: up to 2 bullets on screen
-			if (keysRef.current[" "] && state.bullets.length < 2) {
-				const last = state.bullets[state.bullets.length - 1];
-				if (!last || last.y < H - 120) {
-					state.bullets.push({ x: state.playerX, y: H - 66 });
-				}
+			// shooting: hold Space for continuous rapid fire
+			if (keysRef.current[" "] && state.bullets.length < MAX_BULLETS && now - state.lastShot >= FIRE_EVERY_MS) {
+				state.lastShot = now;
+				state.bullets.push({ x: state.playerX, y: H - 66 });
 			}
 
 			// player bullets

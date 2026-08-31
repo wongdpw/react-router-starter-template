@@ -28,6 +28,8 @@ const ROWS = 26;
 const W = COLS * CELL; // 576
 const H = ROWS * CELL; // 624
 const PLAYER_ZONE_ROWS = 6; // bottom rows the player can move within
+const FIRE_EVERY_MS = 110;  // hold to shoot: one shot per this many ms
+const MAX_BULLETS = 8;      // ceiling so a held key can't flood the field
 
 type Mushroom = { col: number; row: number; hp: number };
 type Segment = { col: number; row: number };
@@ -43,7 +45,8 @@ type GameState = {
 	chains: Chain[];
 	playerX: number; // pixels, center
 	playerY: number; // pixels, center
-	bullet: { x: number; y: number } | null;
+	bullets: { x: number; y: number }[];
+	lastShot: number;
 	score: number;
 	lives: number;
 	wave: number;
@@ -84,7 +87,7 @@ function spawnChain(state: GameState) {
 function resetPlayer(state: GameState) {
 	state.playerX = W / 2;
 	state.playerY = H - CELL * 1.5;
-	state.bullet = null;
+	state.bullets = [];
 }
 
 function newGame(): GameState {
@@ -93,7 +96,8 @@ function newGame(): GameState {
 		chains: [],
 		playerX: W / 2,
 		playerY: H - CELL * 1.5,
-		bullet: null,
+		bullets: [],
+		lastShot: 0,
 		score: 0,
 		lives: 3,
 		wave: 1,
@@ -219,62 +223,67 @@ export default function BugBlaster({}: Route.ComponentProps) {
 				Math.min(H - CELL / 2, state.playerY)
 			);
 
-			// shooting: single bullet on screen, classic style
-			if (keysRef.current[" "] && !state.bullet) {
-				state.bullet = { x: state.playerX, y: state.playerY - CELL / 2 };
+			// shooting: hold Space for continuous rapid fire
+			if (keysRef.current[" "] && state.bullets.length < MAX_BULLETS && now - state.lastShot >= FIRE_EVERY_MS) {
+				state.lastShot = now;
+				state.bullets.push({ x: state.playerX, y: state.playerY - CELL / 2 });
 			}
 
-			// bullet travel + collisions
-			if (state.bullet) {
-				state.bullet.y -= 14;
-				if (state.bullet.y < 0) {
-					state.bullet = null;
-				} else {
-					const bcol = Math.floor(state.bullet.x / CELL);
-					const brow = Math.floor(state.bullet.y / CELL);
+			// bullet travel + collisions (walk backwards so spent shots
+			// can be spliced out while iterating)
+			for (let bi = state.bullets.length - 1; bi >= 0; bi--) {
+				const bullet = state.bullets[bi];
+				bullet.y -= 14;
+				if (bullet.y < 0) {
+					state.bullets.splice(bi, 1);
+					continue;
+				}
 
-					// mushroom hit
-					const mk = mkey(bcol, brow);
-					const mush = state.mushrooms.get(mk);
-					if (mush) {
-						mush.hp -= 1;
-						if (mush.hp <= 0) {
-							state.mushrooms.delete(mk);
-							state.score += 1;
-						}
-						state.bullet = null;
-					} else {
-						// segment hit
-						outer: for (let c = 0; c < state.chains.length; c++) {
-							const chain = state.chains[c];
-							for (let s = 0; s < chain.segments.length; s++) {
-								const seg = chain.segments[s];
-								if (seg.col === bcol && seg.row === brow) {
-									// score: heads worth more
-									state.score += s === 0 ? 100 : 10;
-									// segment becomes a mushroom
-									state.mushrooms.set(mkey(seg.col, seg.row), {
-										col: seg.col,
-										row: seg.row,
-										hp: 4,
-									});
-									// split the chain
-									const before = chain.segments.slice(0, s);
-									const after = chain.segments.slice(s + 1);
-									const newChains: Chain[] = [];
-									if (before.length > 0)
-										newChains.push({ segments: before, dir: chain.dir, vertical: chain.vertical });
-									if (after.length > 0)
-										newChains.push({
-											segments: after,
-											dir: (chain.dir * -1) as 1 | -1,
-											vertical: chain.vertical,
-										});
-									state.chains.splice(c, 1, ...newChains);
-									state.bullet = null;
-									break outer;
-								}
-							}
+				const bcol = Math.floor(bullet.x / CELL);
+				const brow = Math.floor(bullet.y / CELL);
+
+				// mushroom hit
+				const mk = mkey(bcol, brow);
+				const mush = state.mushrooms.get(mk);
+				if (mush) {
+					mush.hp -= 1;
+					if (mush.hp <= 0) {
+						state.mushrooms.delete(mk);
+						state.score += 1;
+					}
+					state.bullets.splice(bi, 1);
+					continue;
+				}
+
+				// segment hit
+				outer: for (let c = 0; c < state.chains.length; c++) {
+					const chain = state.chains[c];
+					for (let s = 0; s < chain.segments.length; s++) {
+						const seg = chain.segments[s];
+						if (seg.col === bcol && seg.row === brow) {
+							// score: heads worth more
+							state.score += s === 0 ? 100 : 10;
+							// segment becomes a mushroom
+							state.mushrooms.set(mkey(seg.col, seg.row), {
+								col: seg.col,
+								row: seg.row,
+								hp: 4,
+							});
+							// split the chain
+							const before = chain.segments.slice(0, s);
+							const after = chain.segments.slice(s + 1);
+							const newChains: Chain[] = [];
+							if (before.length > 0)
+								newChains.push({ segments: before, dir: chain.dir, vertical: chain.vertical });
+							if (after.length > 0)
+								newChains.push({
+									segments: after,
+									dir: (chain.dir * -1) as 1 | -1,
+									vertical: chain.vertical,
+								});
+							state.chains.splice(c, 1, ...newChains);
+							state.bullets.splice(bi, 1);
+							break outer;
 						}
 					}
 				}
@@ -382,9 +391,9 @@ export default function BugBlaster({}: Route.ComponentProps) {
 			}
 			drawPlayer(state);
 
-			if (state.bullet) {
-				g.fillStyle = "#FFFFFF";
-				g.fillRect(state.bullet.x - 1.5, state.bullet.y - 8, 3, 10);
+			g.fillStyle = "#FFFFFF";
+			for (const bullet of state.bullets) {
+				g.fillRect(bullet.x - 1.5, bullet.y - 8, 3, 10);
 			}
 
 			// HUD
