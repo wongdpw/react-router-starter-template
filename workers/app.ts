@@ -7,6 +7,7 @@ export { FakeArtistRoom } from "./fake-artist-room";
 export { SquiggleRoom } from "./squiggle-room";
 export { DoodleRoom } from "./doodle-room";
 export { GalaxySwarmRoom } from "./galaxy-room";
+export { BugBlasterRoom } from "./blaster-room";
 export { GameStats } from "./game-stats";
 export { HighScores } from "./high-scores";
 
@@ -30,6 +31,7 @@ const FAKE_WS = /^\/api\/fake\/([A-Za-z0-9]+)\/ws$/;
 const SQUIGGLE_WS = /^\/api\/squiggle\/([A-Za-z0-9]+)\/ws$/;
 const DOODLE_WS = /^\/api\/doodle\/([A-Za-z0-9]+)\/ws$/;
 const GALAXY_WS = /^\/api\/galaxy\/([A-Za-z0-9]+)\/ws$/;
+const BLASTER_WS = /^\/api\/blaster\/([A-Za-z0-9]+)\/ws$/;
 
 export default {
 	fetch(request, env, ctx) {
@@ -43,7 +45,8 @@ export default {
 		const squiggle = SQUIGGLE_WS.exec(url.pathname);
 		const doodle = DOODLE_WS.exec(url.pathname);
 		const galaxy = GALAXY_WS.exec(url.pathname);
-		const match = battle ?? guess ?? fake ?? squiggle ?? doodle ?? galaxy;
+		const blaster = BLASTER_WS.exec(url.pathname);
+		const match = battle ?? guess ?? fake ?? squiggle ?? doodle ?? galaxy ?? blaster;
 		if (match) {
 			const code = match[1].toUpperCase();
 			if (!isValidRoomCode(code)) {
@@ -60,7 +63,9 @@ export default {
 							? env.SQUIGGLE_ROOM
 							: doodle
 								? env.DOODLE_ROOM
-								: env.GALAXY_ROOM;
+								: galaxy
+									? env.GALAXY_ROOM
+									: env.BLASTER_ROOM;
 			return ns.get(ns.idFromName(code)).fetch(new Request(url, request));
 		}
 

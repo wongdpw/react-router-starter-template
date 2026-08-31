@@ -1,36 +1,27 @@
-# Arcade high scores — top 10 with 3-letter initials
+# Arcade sounds for Bug Blaster and Galaxy Swarm
 
-Shared leaderboards for Bug Blaster, Moon Patrol and Galaxy Swarm, stored
-server-side in a Durable Object so everyone sees the same board.
+All audio is synthesised with the Web Audio API — no sound files to ship.
 
-## New files
-- app/lib/high-scores.ts          — shared types, sorting, validation
-- app/components/HighScores.tsx   — useHighScores hook + board + initials prompt
-- app/routes/api.high-scores.tsx  — GET all boards / POST a new score
-- workers/high-scores.ts          — the HighScores Durable Object
+## New file
+- app/lib/arcade-sound.ts  — shared synth engine + named voices
 
 ## Replaced files
-- app/routes.ts                 — registers /api/high-scores
-- workers/app.ts                — exports the HighScores class
-- wrangler.json                 — HIGH_SCORES binding + v8 migration
-- app/routes/bug-blaster.tsx    — reports score on game over, shows board
-- app/routes/galaxy-swarm.tsx   — same
-- app/routes/moon-patrol.tsx    — listens for the iframe's score message
-- public/moon-patrol-game.html  — posts its final score out to the page
+- app/routes/bug-blaster.tsx
+- app/routes/galaxy-swarm.tsx
 
-## How it behaves
-- Board is top 10, highest first; ties go to whoever got there first.
-- When a run ends and the score would make the board, the "NEW HIGH SCORE"
-  prompt appears; type 3 letters/digits and save. Your initials are
-  remembered for next time. Skip just closes it.
-- Your new row is highlighted after saving.
-- Everything fails quietly: a scoreboard outage never breaks a game.
+## What you'll hear
+Bug Blaster:  shot blip, mushroom chip, segment hit, deeper kill for a
+              chain head, a low two-note march pulse in time with the
+              crawler's steps (it speeds up as waves get faster),
+              death rumble, wave-up fanfare, game-over cadence.
+Galaxy Swarm: shot blip, hit, bigger kill for a diving raider (worth
+              double), a swooping tone when a sortie peels off, enemy
+              shot tick, death rumble, wave-up fanfare, game-over cadence.
 
-## After dragging files in
-1. npm run cf-typegen   (Env types need HIGH_SCORES)
-2. npm run dev          (play a game, lose, enter initials)
-3. git add . ; git commit -m "Arcade high scores" ; git push
-   (deploy applies the v8 Durable Object migration automatically)
-
-Note: bug-blaster.tsx here is the repo's current 1-player version with
-scores wired in — it is not the 2-player build from the earlier zip.
+## Notes
+- Audio can only start after a user gesture, so the context is created on
+  the first key press. Nothing plays on the title screen before you press
+  a key — that's browser policy, not a bug.
+- A "Sound: on/off" button sits under each game. The choice is remembered
+  in localStorage and shared by both games.
+- Moon Patrol already had its own sound and is untouched.

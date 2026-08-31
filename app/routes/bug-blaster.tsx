@@ -2,6 +2,7 @@ import type { Route } from "./+types/bug-blaster";
 import { BattleHeader } from "../components/BattleHeader";
 import { useEffect, useRef, useState } from "react";
 import { HighScoreBoard, InitialsPrompt, useHighScores } from "../components/HighScores";
+import { Sound } from "../lib/arcade-sound";
 
 export function meta({}: Route.MetaArgs) {
 	return [{ title: "Bug Blaster — Games — ArtDrop Spot" }];
@@ -191,6 +192,13 @@ export default function BugBlaster({}: Route.ComponentProps) {
 	const finishRef = useRef(finishRun);
 	finishRef.current = finishRun;
 	const reportedRef = useRef(false);
+	const marchStep = useRef(0);
+	const [muted, setMuted] = useState(false);
+
+	// reflect the stored preference once we're on the client
+	useEffect(() => {
+		setMuted(Sound?.isMuted() ?? false);
+	}, []);
 
 	useEffect(() => {
 		const canvas = canvasRef.current;
@@ -209,9 +217,14 @@ export default function BugBlaster({}: Route.ComponentProps) {
 			}
 			keysRef.current[e.key] = true;
 
+			// browsers only allow audio to begin from a user gesture
+			Sound?.init();
+			Sound?.resume();
+
 			if ((e.key === " " || e.key === "Enter") && (!stateRef.current || stateRef.current.over || !stateRef.current.started)) {
 				reportedRef.current = false;
 				stateRef.current = newGame();
+				Sound?.start();
 			}
 		}
 		function onKeyUp(e: KeyboardEvent) {
@@ -224,11 +237,13 @@ export default function BugBlaster({}: Route.ComponentProps) {
 			state.lives -= 1;
 			if (state.lives <= 0) {
 				state.over = true;
+				Sound?.gameOver();
 				if (!reportedRef.current) {
 					reportedRef.current = true;
 					finishRef.current(state.score);
 				}
 			} else {
+				Sound?.playerDie();
 				// classic behavior: field keeps its mushrooms, fresh chain
 				state.chains = [];
 				spawnChain(state);
@@ -256,6 +271,7 @@ export default function BugBlaster({}: Route.ComponentProps) {
 			if (keysRef.current[" "] && state.bullets.length < MAX_BULLETS && now - state.lastShot >= FIRE_EVERY_MS) {
 				state.lastShot = now;
 				state.bullets.push({ x: state.playerX, y: state.playerY - CELL / 2 });
+				Sound?.shoot();
 			}
 
 			// bullet travel + collisions (walk backwards so spent shots
@@ -279,6 +295,7 @@ export default function BugBlaster({}: Route.ComponentProps) {
 					if (mush.hp <= 0) {
 						state.mushrooms.delete(mk);
 						state.score += 1;
+						Sound?.hitSmall();
 					}
 					state.bullets.splice(bi, 1);
 					continue;
@@ -292,6 +309,8 @@ export default function BugBlaster({}: Route.ComponentProps) {
 						if (seg.col === bcol && seg.row === brow) {
 							// score: heads worth more
 							state.score += s === 0 ? 100 : 10;
+							if (s === 0) Sound?.killBig();
+							else Sound?.hitEnemy();
 							// segment becomes a mushroom
 							state.mushrooms.set(mkey(seg.col, seg.row), {
 								col: seg.col,
@@ -322,6 +341,8 @@ export default function BugBlaster({}: Route.ComponentProps) {
 			if (now - state.lastTick >= state.tickMs) {
 				state.lastTick = now;
 				stepChains(state);
+				marchStep.current = (marchStep.current + 1) % 2;
+				Sound?.march(marchStep.current);
 			}
 
 			// player collision with any segment
@@ -339,6 +360,7 @@ export default function BugBlaster({}: Route.ComponentProps) {
 			// wave cleared
 			if (state.chains.length === 0 || state.chains.every((c) => c.segments.length === 0)) {
 				state.wave += 1;
+				Sound?.waveUp();
 				state.tickMs = tickMsFor(state.wave);
 				state.chains = [];
 				seedExtraMushrooms(state);
@@ -492,6 +514,15 @@ export default function BugBlaster({}: Route.ComponentProps) {
 					A classic arcade bug shooter. Arrows to move, Space to shoot.
 				</p>
 
+				<p style={{ marginTop: -8, marginBottom: 24 }}>
+					<a
+						href="/bug-blaster/online"
+						style={{ color: "#38BDF8", fontWeight: 700, fontSize: 14, textDecoration: "none" }}
+					>
+						Play online with a friend on another computer →
+					</a>
+				</p>
+
 				{pendingScore !== null && (
 					<InitialsPrompt score={pendingScore} onSubmit={submit} onCancel={dismiss} />
 				)}
@@ -508,6 +539,28 @@ export default function BugBlaster({}: Route.ComponentProps) {
 						imageRendering: "pixelated",
 					}}
 				/>
+
+				<div style={{ marginTop: 12 }}>
+					<button
+						onClick={() => {
+							Sound?.init();
+							setMuted(Sound?.toggleMute() ?? false);
+						}}
+						style={{
+							background: "transparent",
+							border: `1px solid ${COLORS.border}`,
+							color: COLORS.textDim,
+							borderRadius: 999,
+							padding: "7px 16px",
+							fontSize: 12.5,
+							fontWeight: 600,
+							cursor: "pointer",
+							fontFamily: "'Inter', sans-serif",
+						}}
+					>
+						{muted ? "Sound: off" : "Sound: on"}
+					</button>
+				</div>
 
 				<HighScoreBoard board={board} highlight={justRanked} />
 			</div>

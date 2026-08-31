@@ -129,8 +129,8 @@ const GAMES: GameCard[] = [
 		tagline: "Retro arcade",
 		blurb:
 			"A mushroom field, a many-segment crawler winding down toward you, and one shot on screen at a time. Split it, clear it, and survive as the waves speed up.",
-		players: "Play alone",
-		modes: "Keyboard \u00b7 No room needed",
+		players: "1\u20132 players",
+		modes: "Solo or online rooms",
 		href: "/bug-blaster",
 		tint: "#F87171",
 		art: <BlasterArt />,

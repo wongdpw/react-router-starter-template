@@ -52,6 +52,10 @@
 			{
 				"name": "HIGH_SCORES",
 				"class_name": "HighScores"
+			},
+			{
+				"name": "BLASTER_ROOM",
+				"class_name": "BugBlasterRoom"
 			}
 		]
 	},
@@ -102,6 +106,12 @@
 			"tag": "v8",
 			"new_sqlite_classes": [
 				"HighScores"
+			]
+		},
+		{
+			"tag": "v9",
+			"new_sqlite_classes": [
+				"BugBlasterRoom"
 			]
 		}
 	]

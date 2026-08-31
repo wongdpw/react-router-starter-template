@@ -1,7 +1,8 @@
 import type { Route } from "./+types/galaxy-swarm";
 import { BattleHeader } from "../components/BattleHeader";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { HighScoreBoard, InitialsPrompt, useHighScores } from "../components/HighScores";
+import { Sound } from "../lib/arcade-sound";
 
 export function meta({}: Route.MetaArgs) {
 	return [{ title: "Galaxy Swarm — Games — ArtDrop Spot" }];
@@ -152,6 +153,12 @@ export default function GalaxySwarm({}: Route.ComponentProps) {
 	const finishRef = useRef(finishRun);
 	finishRef.current = finishRun;
 	const reportedRef = useRef(false);
+	const [muted, setMuted] = useState(false);
+
+	// reflect the stored preference once we're on the client
+	useEffect(() => {
+		setMuted(Sound?.isMuted() ?? false);
+	}, []);
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 	const stateRef = useRef<GameState | null>(null);
 	const keysRef = useRef<Record<string, boolean>>({});
@@ -167,6 +174,9 @@ export default function GalaxySwarm({}: Route.ComponentProps) {
 
 		function onKeyDown(e: KeyboardEvent) {
 			if (["ArrowLeft", "ArrowRight", " "].includes(e.key)) e.preventDefault();
+			// browsers only allow audio to begin from a user gesture
+			Sound?.init();
+			Sound?.resume();
 			keysRef.current[e.key] = true;
 			if (
 				(e.key === " " || e.key === "Enter") &&
@@ -174,6 +184,7 @@ export default function GalaxySwarm({}: Route.ComponentProps) {
 			) {
 				reportedRef.current = false;
 				stateRef.current = newGame();
+				Sound?.start();
 			}
 		}
 		function onKeyUp(e: KeyboardEvent) {
@@ -200,8 +211,10 @@ export default function GalaxySwarm({}: Route.ComponentProps) {
 
 		function loseLife(state: GameState, now: number) {
 			state.lives -= 1;
+			Sound?.playerDie();
 			if (state.lives <= 0) {
 				state.over = true;
+				Sound?.gameOver();
 				if (!reportedRef.current) {
 					reportedRef.current = true;
 					finishRef.current(state.score);
@@ -246,6 +259,7 @@ export default function GalaxySwarm({}: Route.ComponentProps) {
 			if (keysRef.current[" "] && state.bullets.length < MAX_BULLETS && now - state.lastShot >= FIRE_EVERY_MS) {
 				state.lastShot = now;
 				state.bullets.push({ x: state.playerX, y: H - 66 });
+				Sound?.shoot();
 			}
 
 			// player bullets
@@ -265,6 +279,7 @@ export default function GalaxySwarm({}: Route.ComponentProps) {
 				// later waves send raiders down in pairs, then threes
 				const sortie = 1 + Math.floor((state.wave - 1) / 4);
 				for (let i = 0; i < Math.min(4, sortie); i++) startDive(state);
+				Sound?.dive();
 			}
 
 			// enemies
@@ -289,6 +304,7 @@ export default function GalaxySwarm({}: Route.ComponentProps) {
 						const len = Math.hypot(dx, dy) || 1;
 						const v = Math.min(0.42, 0.22 + (state.wave - 1) * 0.02);
 						state.enemyBullets.push({ x: e.x, y: e.y, vx: (dx / len) * v, vy: (dy / len) * v });
+						Sound?.hitSmall();
 					}
 
 					// off the bottom: rejoin the formation from the top
@@ -315,6 +331,8 @@ export default function GalaxySwarm({}: Route.ComponentProps) {
 						b.y = -100; // consume the bullet
 						const base = rowScore(e.row);
 						state.score += e.state === "diving" ? base * 2 : base;
+						if (e.state === "diving") Sound?.killBig();
+						else Sound?.hitEnemy();
 						break;
 					}
 				}
@@ -343,6 +361,7 @@ export default function GalaxySwarm({}: Route.ComponentProps) {
 			// wave cleared
 			if (state.enemies.every((e) => !e.alive)) {
 				state.wave += 1;
+				Sound?.waveUp();
 				state.enemyBullets = [];
 				state.bullets = [];
 				spawnWave(state);
@@ -538,6 +557,28 @@ export default function GalaxySwarm({}: Route.ComponentProps) {
 						background: "#000000",
 					}}
 				/>
+
+				<div style={{ marginTop: 12 }}>
+					<button
+						onClick={() => {
+							Sound?.init();
+							setMuted(Sound?.toggleMute() ?? false);
+						}}
+						style={{
+							background: "transparent",
+							border: `1px solid ${COLORS.border}`,
+							color: COLORS.textDim,
+							borderRadius: 999,
+							padding: "7px 16px",
+							fontSize: 12.5,
+							fontWeight: 600,
+							cursor: "pointer",
+							fontFamily: "'Inter', sans-serif",
+						}}
+					>
+						{muted ? "Sound: off" : "Sound: on"}
+					</button>
+				</div>
 
 				<HighScoreBoard board={board} highlight={justRanked} />
 			</div>
