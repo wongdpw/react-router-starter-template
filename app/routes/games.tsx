@@ -183,6 +183,18 @@ const GAMES: GameCard[] = [
 		tint: "#4ADE80",
 		art: <HopArt />,
 	},
+	{
+		id: "paper-route",
+		title: "Paper Route",
+		tagline: "Retro arcade",
+		blurb:
+			"Ride down a scrolling street lined with houses, land papers in every subscriber's mailbox, and dodge potholes, cars and dogs along the way.",
+		players: "Play alone",
+		modes: "Keyboard \u00b7 No room needed",
+		href: "/paper-route",
+		tint: "#FACC15",
+		art: <PaperArt />,
+	},
 ];
 
 export default function Games({ loaderData }: Route.ComponentProps) {
@@ -580,6 +592,46 @@ function DefenderArt() {
 			<ellipse cx="104" cy="38" rx="7" ry="4" fill="#C084FC" />
 			<path d="M104 42v7" stroke="#C084FC" strokeWidth="1.6" />
 			<rect x="101" y="52" width="6" height="7" rx="1.5" fill="#38BDF8" />
+		</svg>
+	);
+}
+
+function PaperArt() {
+	return (
+		<svg width="150" height="92" viewBox="0 0 150 92" fill="none" aria-hidden>
+			<rect x="22" y="8" width="106" height="76" rx="8" fill="#0A0A0A" stroke="#2E2E2E" />
+			{/* lawns */}
+			<path d="M22 8h34l-14 76H22Z" fill="#12351f" />
+			<path d="M128 8H94l14 76h20Z" fill="#12351f" />
+			{/* sidewalks */}
+			<path d="M56 8h10l-8 76H48Z" fill="#4a4a4a" />
+			<path d="M94 8H84l8 76h10Z" fill="#4a4a4a" />
+			{/* road receding to a vanishing point */}
+			<path d="M66 8h18l8 76H58Z" fill="#2b2b2b" />
+			<path d="M74 12l1 8M74.5 30l1 8M75 48l1 8M75.5 66l1 8" stroke="#FFFFFF" strokeOpacity="0.5" strokeWidth="2" strokeLinecap="round" />
+			{/* houses with pitched roofs + lit windows */}
+			<g>
+				<rect x="28" y="24" width="18" height="13" fill="#7c6f9c" />
+				<path d="M27 24l10 -7 10 7Z" fill="#2a2a33" />
+				<rect x="31" y="27" width="4" height="4" fill="#FACC15" />
+				<rect x="112" y="50" width="14" height="11" fill="#8a5a3c" />
+				<path d="M111 50l8 -6 8 6Z" fill="#2a2a33" />
+			</g>
+			{/* mailbox with red flag */}
+			<rect x="49" y="32" width="2" height="7" fill="#3a2a1a" />
+			<rect x="46" y="28" width="8" height="5" fill="#FACC15" />
+			<rect x="54" y="28" width="2" height="3" fill="#ef4444" />
+			{/* pothole */}
+			<ellipse cx="74" cy="60" rx="6" ry="3.4" fill="#000000" />
+			{/* cyclist */}
+			<ellipse cx="70" cy="72" rx="3.4" ry="4.4" fill="none" stroke="#111" strokeWidth="1.6" />
+			<ellipse cx="80" cy="72" rx="3.4" ry="4.4" fill="none" stroke="#111" strokeWidth="1.6" />
+			<path d="M70 72l5 -6 5 6" stroke="#FACC15" strokeWidth="2" fill="none" strokeLinejoin="round" />
+			<rect x="72" y="58" width="6" height="8" rx="1" fill="#38BDF8" />
+			<circle cx="75" cy="55" r="3" fill="#f2c48c" />
+			<path d="M72 54a3 3 0 0 1 6 0Z" fill="#ef4444" />
+			{/* thrown paper */}
+			<rect x="56" y="46" width="6" height="4" fill="#f5f5f5" transform="rotate(-20 59 48)" />
 		</svg>
 	);
 }

@@ -15,6 +15,7 @@ export default [
 	route("galaga", "routes/galaga.tsx"),
 	route("defender", "routes/defender.tsx"),
 	route("hop-home", "routes/hop-home.tsx"),
+	route("paper-route", "routes/paper-route.tsx"),
 	route("bug-blaster", "routes/bug-blaster.tsx"),
 	route("bug-blaster/online", "routes/bug-blaster.online.tsx"),
 	route("bug-blaster/room/:code", "routes/bug-blaster.room.$code.tsx"),

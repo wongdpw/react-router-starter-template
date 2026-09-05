@@ -20,6 +20,7 @@ export const GAME_IDS = [
 	"galaga",
 	"defender",
 	"hop-home",
+	"paper-route",
 ] as const;
 
 export type GameId = (typeof GAME_IDS)[number];
