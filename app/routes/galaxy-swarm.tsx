@@ -551,6 +551,8 @@ export default function GalaxySwarm({}: Route.ComponentProps) {
 					width={W}
 					height={H}
 					style={{
+						display: "block",
+						margin: "0 auto",
 						maxWidth: "100%",
 						border: `2px solid ${COLORS.border}`,
 						borderRadius: 12,

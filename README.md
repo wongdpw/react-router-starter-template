@@ -1,37 +1,36 @@
-# Hop Home — original Frogger-style crossing game
+# Fix: canvas games rendering off-center
 
-Titled "Hop Home" rather than the trademarked name, same as the other
-arcade games here. Hop through six lanes of traffic, then ride logs and
-turtles (some of which submerge) across the river, into one of five open
-home slots before the round timer runs out. Three lives, timer resets
-each successful crossing, difficulty ramps each round via a speed
-multiplier.
+## Root cause
+Tailwind's Preflight reset (pulled in via `@import "tailwindcss"` in
+app.css) sets `canvas, iframe, img, svg, video { display: block }`
+globally. All three canvas games centered their canvas using the
+PARENT'S `text-align: center` — which only works on inline/inline-block
+content. A block-level element ignores text-align entirely; its position
+depends on its own margin. With none set, the canvas had no defined
+horizontal position, leaving it vulnerable to drifting off-center
+depending on browser, font-loading timing, and viewport specifics.
 
-## New file
-- app/routes/hop-home.tsx  — the game (canvas, no external assets)
+The five iframe-based games (Moon Patrol, Defender, Galaga, Lunar Buggy,
+Spore Field) were unaffected — they use width:100% rather than relying
+on centering.
 
-## Replaced files
-- app/routes.ts        — registers /hop-home
-- app/lib/game-ids.ts  — adds "hop-home" (needed for high scores + the
-                         play-count API's server-side whitelist)
-- app/routes/games.tsx — adds the Hop Home card with original frog/lane art
+## The fix
+Added explicit `margin: "0 auto"` (plus `display: "block"` for clarity)
+to the canvas style in all three affected games. This centers a
+block-level element unambiguously, independent of text-align, Preflight,
+or any browser-specific quirk.
 
-## Wired in from the start
-- Shared arcade high-score board (top 10, 3-letter initials)
-- Shared arcade sound engine (hop, splash/hit, death, wave-up, win fanfare)
-- "Sound: on/off" toggle, same as Bug Blaster and Galaxy Swarm
+## Files
+- app/routes/hop-home.tsx
+- app/routes/bug-blaster.tsx
+- app/routes/galaxy-swarm.tsx
 
-## Validation performed
-- npm run typecheck / build — clean
-- I also ported the pure game-update logic into standalone Node scripts
-  and ran ~600 simulated lives (scripted bots) against it. Zero crashes,
-  zero out-of-bounds, zero NaN, zero home-slot overfill across the whole
-  run. This confirms the engine is structurally sound; it does NOT
-  confirm the difficulty is well-tuned for a human, since my bots react
-  slower and less holistically than a real player would. Please playtest
-  and tell me if it feels too hard/easy/fast — the knobs are all at the
-  top of the file (ROUND_SECONDS, lane gap/speed in buildLanes()).
-
-## After dragging files in
-1. npm run dev, open /hop-home
-2. git add . ; git commit -m "Add Hop Home" ; git push
+## Verification
+- npm run typecheck / build: clean
+- Reproduced the real production Preflight CSS in a standalone headless
+  render and confirmed the fixed version centers correctly. My headless
+  tool did not reproduce the exact off-center symptom from your
+  screenshot (likely an older rendering engine that handles Preflight's
+  cascade or font-loading timing differently from a real browser) — so
+  please confirm on your end after deploying that it now looks right in
+  an actual browser, with DevTools closed.

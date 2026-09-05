@@ -729,18 +729,22 @@ export default function HopHome({}: Route.ComponentProps) {
 					<InitialsPrompt score={pendingScore} onSubmit={submit} onCancel={dismiss} />
 				)}
 
-				<canvas
-					ref={canvasRef}
-					width={W}
-					height={H}
-					style={{
-						maxWidth: "100%",
-						border: `2px solid ${COLORS.border}`,
-						borderRadius: 12,
-						background: "#000000",
-						imageRendering: "pixelated",
-					}}
-				/>
+				<div style={{ display: "flex", justifyContent: "center" }}>
+					<canvas
+						ref={canvasRef}
+						width={W}
+						height={H}
+						style={{
+							display: "block",
+							margin: "0 auto",
+							maxWidth: "100%",
+							border: `2px solid ${COLORS.border}`,
+							borderRadius: 12,
+							background: "#000000",
+							imageRendering: "pixelated",
+						}}
+					/>
+				</div>
 
 				<div style={{ marginTop: 12 }}>
 					<button
