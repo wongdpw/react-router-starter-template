@@ -1,0 +1,1109 @@
+<title>Spore Field</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Silkscreen:wght@400;700&family=IBM+Plex+Sans:wght@400;500&display=swap">
+<style>
+  :root{
+    --void:#06050C;
+    --cab:#171223;
+    --cab-edge:#2A2140;
+    --bezel:#0B0813;
+    --cyan:#5CE1E6;
+    --rose:#FF5D8F;
+    --toxin:#C77DFF;
+    --lime:#9BE04A;
+    --amber:#FFB347;
+    --ink:#E7E2F5;
+    --ink-dim:#9C93B8;
+    --ink-faint:#665C86;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    background:
+      radial-gradient(120% 90% at 50% -10%, #1B1430 0%, rgba(27,20,48,0) 60%),
+      var(--void);
+    color:var(--ink);
+    font-family:"IBM Plex Sans", system-ui, sans-serif;
+    min-height:100dvh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:clamp(12px,3vw,32px);
+  }
+  .cab{
+    width:min(100%, 620px);
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+  }
+  .marquee{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:6px;
+    text-align:center;
+  }
+  .marquee h1{
+    font-family:"Bungee", "Impact", sans-serif;
+    font-size:clamp(30px,7.5vw,52px);
+    line-height:.95;
+    margin:0;
+    letter-spacing:.02em;
+    text-wrap:balance;
+    background:linear-gradient(178deg, var(--cyan) 0%, #A9F0C6 38%, var(--lime) 62%, var(--amber) 100%);
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+    text-shadow:0 0 26px rgba(92,225,230,.18);
+  }
+  .marquee .sub{
+    margin:0;
+    font-family:"Silkscreen", monospace;
+    font-size:10px;
+    letter-spacing:.22em;
+    text-transform:uppercase;
+    color:var(--ink-faint);
+  }
+  .hud{
+    display:grid;
+    grid-template-columns:repeat(4, 1fr);
+    gap:1px;
+    background:var(--cab-edge);
+    border:1px solid var(--cab-edge);
+    border-radius:4px;
+    overflow:hidden;
+  }
+  .stat{
+    background:var(--cab);
+    padding:8px 10px;
+    display:flex;
+    flex-direction:column;
+    gap:5px;
+    min-width:0;
+  }
+  .stat .k{
+    font-family:"Silkscreen", monospace;
+    font-size:9px;
+    letter-spacing:.16em;
+    text-transform:uppercase;
+    color:var(--ink-faint);
+  }
+  .stat .v{
+    font-family:"Silkscreen", monospace;
+    font-size:clamp(13px,3.4vw,17px);
+    font-variant-numeric:tabular-nums;
+    color:var(--ink);
+  }
+  #score{color:var(--cyan)}
+  #high{color:var(--ink-dim)}
+  #wave{color:var(--amber)}
+  .lives-row{display:flex;align-items:center;gap:5px;min-height:17px}
+  .life{
+    width:9px;height:12px;
+    background:var(--cyan);
+    clip-path:polygon(50% 0,100% 72%,100% 100%,68% 100%,50% 78%,32% 100%,0 100%,0 72%);
+    box-shadow:0 0 8px rgba(92,225,230,.5);
+  }
+  .lives-row .none{font-family:"Silkscreen",monospace;font-size:11px;color:var(--ink-faint)}
+  .screen{
+    position:relative;
+    background:var(--bezel);
+    border:1px solid var(--cab-edge);
+    border-radius:6px;
+    padding:10px;
+    box-shadow:0 0 0 1px rgba(0,0,0,.6), 0 28px 70px -30px rgba(92,225,230,.28);
+  }
+  .screen::after{
+    content:"";
+    position:absolute;
+    inset:10px;
+    pointer-events:none;
+    border-radius:3px;
+    background:radial-gradient(100% 100% at 50% 45%, rgba(0,0,0,0) 52%, rgba(0,0,0,.55) 100%);
+  }
+  canvas{
+    display:block;
+    width:100%;
+    height:auto;
+    aspect-ratio:480/512;
+    image-rendering:pixelated;
+    background:#04030A;
+    border-radius:3px;
+    touch-action:none;
+    cursor:crosshair;
+  }
+  .scan{
+    position:absolute;
+    inset:10px;
+    pointer-events:none;
+    border-radius:3px;
+    background:repeating-linear-gradient(
+      to bottom,
+      rgba(0,0,0,.26) 0px,
+      rgba(0,0,0,.26) 1px,
+      rgba(255,255,255,0) 1px,
+      rgba(255,255,255,0) 3px
+    );
+    mix-blend-mode:multiply;
+    opacity:.55;
+    animation:flick 5.5s steps(24) infinite;
+  }
+  @keyframes flick{0%,97%{opacity:.55}98%{opacity:.42}100%{opacity:.55}}
+  @media (prefers-reduced-motion: reduce){ .scan{animation:none} }
+  .deck{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px 16px;
+  }
+  .keys{
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px 14px;
+    font-size:12.5px;
+    color:var(--ink-dim);
+    line-height:1.5;
+  }
+  .keys b{
+    font-family:"Silkscreen", monospace;
+    font-weight:400;
+    font-size:10px;
+    color:var(--ink);
+    background:#221A36;
+    border:1px solid var(--cab-edge);
+    border-bottom-width:2px;
+    border-radius:3px;
+    padding:2px 5px;
+    margin-right:5px;
+  }
+  .btns{display:flex;gap:8px}
+  button{
+    font-family:"Silkscreen", monospace;
+    font-size:10px;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    color:var(--ink-dim);
+    background:#1D1730;
+    border:1px solid var(--cab-edge);
+    border-radius:3px;
+    padding:8px 11px;
+    cursor:pointer;
+  }
+  button:hover{color:var(--ink);border-color:#3D3160}
+  button[aria-pressed="true"]{color:var(--cyan);border-color:rgba(92,225,230,.45)}
+  button:focus-visible, canvas:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+  .scoring{
+    display:flex;
+    flex-wrap:wrap;
+    gap:4px 12px;
+    font-family:"Silkscreen", monospace;
+    font-size:9.5px;
+    letter-spacing:.08em;
+    color:var(--ink-faint);
+    border-top:1px solid var(--cab-edge);
+    padding-top:10px;
+  }
+  .scoring span{white-space:nowrap}
+  .scoring i{font-style:normal}
+  .sw-body{color:var(--lime)}
+  .sw-head{color:var(--amber)}
+  .sw-spider{color:var(--rose)}
+  .sw-flea{color:#EDE7F6}
+  .sw-scorp{color:var(--toxin)}
+</style>
+
+<main class="cab">
+  <header class="marquee">
+    <h1>Spore Field</h1>
+    <p class="sub">Centipede &middot; rebuilt on a 30&times;32 phosphor grid</p>
+  </header>
+
+  <section class="hud" aria-label="Game status">
+    <div class="stat"><span class="k">Score</span><span class="v" id="score">000000</span></div>
+    <div class="stat"><span class="k">High</span><span class="v" id="high">000000</span></div>
+    <div class="stat"><span class="k">Wave</span><span class="v" id="wave">01</span></div>
+    <div class="stat"><span class="k">Blasters</span><span class="v lives-row" id="lives"></span></div>
+  </section>
+
+  <div class="screen">
+    <canvas id="game" width="480" height="512" tabindex="0" aria-label="Centipede playfield"></canvas>
+    <div class="scan"></div>
+  </div>
+
+  <div class="deck">
+    <div class="keys">
+      <span><b>&larr; &rarr; &uarr; &darr;</b>move</span>
+      <span><b>Space</b>fire</span>
+      <span><b>Mouse</b>track &amp; fire</span>
+      <span><b>P</b>pause</span>
+    </div>
+    <div class="btns">
+      <button id="btn-sound" aria-pressed="true">Sound</button>
+      <button id="btn-pause">Pause</button>
+      <button id="btn-reset">New game</button>
+    </div>
+  </div>
+
+  <div class="scoring">
+    <span class="sw-body"><i>Segment</i> 10</span>
+    <span class="sw-head"><i>Head</i> 100</span>
+    <span class="sw-spider"><i>Spider</i> 300&ndash;900</span>
+    <span class="sw-flea"><i>Flea</i> 200</span>
+    <span class="sw-scorp"><i>Scorpion</i> 1000</span>
+    <span><i>Mushroom</i> 1 &middot; <i>Regrown</i> 5</span>
+    <span><i>Extra blaster</i> every 12,000</span>
+  </div>
+</main>
+
+<script>
+(function(){
+"use strict";
+
+/* ---------- playfield geometry ---------- */
+const COLS = 30, ROWS = 32, CELL = 16;
+const W = COLS * CELL, H = ROWS * CELL;
+const PLAYER_TOP = 25;          // blaster is confined to rows 25..31
+const STEP = 1000 / 60;
+
+const cv = document.getElementById("game");
+const ctx = cv.getContext("2d", { alpha:false });
+ctx.imageSmoothingEnabled = false;
+
+/* ---------- 8x8 sprites, drawn at 2x into a 16px cell ---------- */
+const SPR = {
+  mush4: ["..####..",".######.","########","########","..####..","...##...","..####..","........"],
+  mush3: ["....##..","..#####.",".#######","########","..####..","...##...","..####..","........"],
+  mush2: ["........","..####..",".#####..",".#####..","..####..","...##...","..####..","........"],
+  mush1: ["........","........","..###...","..####..","..###...","...##...","..####..","........"],
+  body:  ["..####..",".######.","########","########","########","########",".######.","..####.."],
+  head:  ["..####..",".######.","########","##.##.##","########","########",".######.","..####.."],
+  spider:["#......#",".#.##.#.","..####..",".######.","##.##.##","#.####.#","#.#..#.#","..#..#.."],
+  flea:  ["..####..",".######.","########","########",".######.","..#..#..",".#.##.#.","#......#"],
+  scorp: [".#......","#.#...##",".#.###..","..#####.",".######.","#.#.#.#.","........","........"],
+  ship:  ["...##...","...##...","..####..","..####..",".######.","##.##.##","##....##","#......#"]
+};
+const MUSH_SPR = [null, SPR.mush1, SPR.mush2, SPR.mush3, SPR.mush4];
+
+/* ---------- wave palettes, cycled like the cabinet ---------- */
+const WAVES = [
+  { mush:"#FF5D8F", cap:"#FF9BBB", body:"#9BE04A", head:"#FFE24A" },
+  { mush:"#7FC7FF", cap:"#BEE4FF", body:"#FF8A3D", head:"#FFD1E8" },
+  { mush:"#FFB347", cap:"#FFD79B", body:"#4AE0A8", head:"#FFF3A0" },
+  { mush:"#B36BFF", cap:"#DCBBFF", body:"#FF6BD6", head:"#7FE7FF" }
+];
+const CYAN = "#5CE1E6", TOXIN = "#C77DFF", TOXIN_CAP = "#EBC9FF", BONE = "#EDE7F6";
+
+/* ---------- state ---------- */
+const S = {
+  mode:"title",           // title | play | dying | wave | over | pause
+  score:0, high:0, lives:3, level:1, nextLife:12000,
+  shroom:new Uint8Array(COLS*ROWS),
+  poison:new Uint8Array(COLS*ROWS),
+  groups:[], bullets:[], sparks:[], pops:[],
+  spider:null, flea:null, scorp:null,
+  pendingHeads:0, headT:0, spiderT:0, scorpT:0, fleaT:200,
+  player:{ x:W/2, y:H-CELL*1.5 },
+  fireCool:0, tick:0, timer:0, banner:null, bannerT:0,
+  paused:false
+};
+
+const idx = (c,r) => r*COLS + c;
+const mush = (c,r) => (c<0||c>=COLS||r<0||r>=ROWS) ? 0 : S.shroom[idx(c,r)];
+const pal = () => WAVES[(S.level-1) % WAVES.length];
+const cx = c => c*CELL + CELL/2;
+const cy = r => r*CELL + CELL/2;
+const colAt = x => Math.max(0, Math.min(COLS-1, Math.floor(x/CELL)));
+const rowAt = y => Math.max(0, Math.min(ROWS-1, Math.floor(y/CELL)));
+const rnd = n => Math.floor(Math.random()*n);
+
+/* ---------- audio ---------- */
+let actx = null, sound = true;
+function tone(freq, dur, type, vol, slide){
+  if(!sound) return;
+  try{
+    if(!actx) actx = new (window.AudioContext||window.webkitAudioContext)();
+    if(actx.state === "suspended") actx.resume();
+    const t = actx.currentTime;
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = type || "square";
+    o.frequency.setValueAtTime(freq, t);
+    if(slide) o.frequency.exponentialRampToValueAtTime(Math.max(40, slide), t + dur);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol || 0.06, t + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(actx.destination);
+    o.start(t); o.stop(t + dur + 0.02);
+  }catch(e){ /* audio unavailable: play on in silence */ }
+}
+const SFX = {
+  fire:   () => tone(760, 0.05, "square", 0.035, 380),
+  chip:   () => tone(220, 0.03, "square", 0.03, 180),
+  seg:    () => tone(520, 0.07, "square", 0.06, 240),
+  head:   () => tone(300, 0.14, "sawtooth", 0.07, 120),
+  bug:    () => tone(880, 0.12, "triangle", 0.07, 220),
+  die:    () => tone(180, 0.55, "sawtooth", 0.09, 45),
+  wave:   () => { tone(440,0.09,"square",0.05); setTimeout(()=>tone(660,0.09,"square",0.05),90); setTimeout(()=>tone(880,0.16,"square",0.05),180); },
+  life:   () => { tone(660,0.08,"triangle",0.06); setTimeout(()=>tone(990,0.16,"triangle",0.06),90); }
+};
+
+/* ---------- persistence ---------- */
+try{ S.high = parseInt(localStorage.getItem("sporefield.high") || "0", 10) || 0; }catch(e){ S.high = 0; }
+function saveHigh(){ try{ localStorage.setItem("sporefield.high", String(S.high)); }catch(e){} }
+
+/* ---------- field ---------- */
+function seedField(){
+  S.shroom.fill(0); S.poison.fill(0);
+  let want = 42;
+  let guard = 0;
+  while(want > 0 && guard++ < 4000){
+    const c = rnd(COLS), r = 2 + rnd(ROWS - 5);
+    if(S.shroom[idx(c,r)]) continue;
+    if(r >= PLAYER_TOP && Math.abs(c - COLS/2) < 3) continue;   // keep the blaster's spawn lane clear
+    S.shroom[idx(c,r)] = 4;
+    want--;
+  }
+}
+function regrow(award){
+  let n = 0;
+  for(let i=0;i<S.shroom.length;i++){
+    if(S.poison[i]){ S.poison[i] = 0; }
+    if(S.shroom[i] > 0 && S.shroom[i] < 4){ S.shroom[i] = 4; n++; }
+  }
+  if(award && n){ addScore(n * 5); }
+}
+function lowerShrooms(){
+  let n = 0;
+  for(let r=PLAYER_TOP;r<ROWS;r++) for(let c=0;c<COLS;c++) if(S.shroom[idx(c,r)]) n++;
+  return n;
+}
+
+/* ---------- centipede ---------- */
+function segSpeed(){ return Math.min(3.1, 1.9 + (S.level-1) * 0.14); }
+
+function makeGroup(count, col, row, dir){
+  const speed = segSpeed();
+  const g = {
+    count, speed, gap: CELL / speed, dir, vdir:1, dive:false,
+    x: cx(col), y: cy(row), col, row, tx:cx(col), ty:cy(row), trail:[]
+  };
+  const back = Math.ceil(count * g.gap) + 4;
+  for(let i=back;i>0;i--) g.trail.push({ x: g.x - dir*i*speed, y: g.y });
+  g.trail.push({ x:g.x, y:g.y });
+  chooseTarget(g);
+  return g;
+}
+
+function chooseTarget(g){
+  if(g.dive){
+    if(g.row < ROWS-1){ g.tx = cx(g.col); g.ty = cy(g.row+1); return; }
+    g.dive = false; g.vdir = -1;
+  }
+  const nc = g.col + g.dir;
+  const ahead = (nc >= 0 && nc < COLS) ? idx(nc, g.row) : -1;
+  if(ahead >= 0 && S.shroom[ahead] && S.poison[ahead] && g.row < ROWS-1){
+    g.dive = true;                       // touched a poisoned cap: straight down
+    g.tx = cx(g.col); g.ty = cy(g.row+1);
+    return;
+  }
+  if(nc < 0 || nc >= COLS || mush(nc, g.row)){
+    g.dir = -g.dir;
+    let nr = g.row + g.vdir;
+    if(nr > ROWS-1){ g.vdir = -1; nr = g.row - 1; }
+    if(nr < PLAYER_TOP && g.vdir < 0){ g.vdir = 1; nr = g.row + 1; }
+    if(nr < 0){ g.vdir = 1; nr = 0; }
+    g.tx = cx(g.col); g.ty = cy(nr);
+  } else {
+    g.tx = cx(nc); g.ty = cy(g.row);
+  }
+}
+
+function stepGroup(g){
+  const dx = g.tx - g.x, dy = g.ty - g.y;
+  if(Math.abs(dx) + Math.abs(dy) <= g.speed){
+    g.x = g.tx; g.y = g.ty;
+    g.col = Math.round((g.x - CELL/2) / CELL);
+    g.row = Math.round((g.y - CELL/2) / CELL);
+    chooseTarget(g);
+  } else if(Math.abs(dx) > 0){
+    g.x += Math.sign(dx) * g.speed;
+  } else {
+    g.y += Math.sign(dy) * g.speed;
+  }
+  g.trail.push({ x:g.x, y:g.y });
+  const cap = Math.ceil(g.count * g.gap) + 6;
+  while(g.trail.length > cap) g.trail.shift();
+}
+
+function segPos(g, k){
+  if(k === 0) return { x:g.x, y:g.y };
+  const at = g.trail.length - 1 - k * g.gap;
+  if(at <= 0) return g.trail[0];
+  const i0 = Math.floor(at), f = at - i0;
+  const a = g.trail[i0], b = g.trail[Math.min(g.trail.length-1, i0+1)];
+  return { x: a.x + (b.x-a.x)*f, y: a.y + (b.y-a.y)*f };
+}
+
+/* split a group when segment k is destroyed */
+function splitGroup(g, k){
+  const total = g.count;
+  const out = [];
+  const tailCount = total - k - 1;
+  if(tailCount > 0){
+    const p = segPos(g, k+1);
+    const n = makeGroup(tailCount, colAt(p.x), rowAt(p.y), g.dir);
+    n.vdir = g.vdir;
+    n.dive = g.dive;
+    const need = Math.ceil(tailCount * n.gap) + 2;
+    const cut = g.trail.length - Math.round((k+1) * g.gap);
+    if(cut >= need) n.trail = g.trail.slice(cut - need, cut).concat([{ x:n.x, y:n.y }]);
+    chooseTarget(n);
+    out.push(n);
+  }
+  if(k > 0){
+    g.count = k;
+    out.push(g);
+  }
+  return out;
+}
+
+function spawnWave(){
+  const body = Math.max(1, 12 - (S.level-1));
+  const dir = (S.level % 2) ? 1 : -1;
+  S.groups = [ makeGroup(body, dir > 0 ? 0 : COLS-1, 0, dir) ];
+  S.pendingHeads = Math.min(6, S.level - 1);
+  S.headT = 240;
+  S.spiderT = 300 - Math.min(180, S.level * 18);
+  S.scorpT = S.level >= 2 ? 600 : 99999;
+  S.flea = null; S.spider = null; S.scorp = null;
+}
+
+function respawnCentipede(){
+  let total = 0;
+  for(const g of S.groups) total += g.count;
+  total = Math.max(1, Math.min(12, total));
+  const dir = Math.random() < 0.5 ? 1 : -1;
+  S.groups = [ makeGroup(total, dir > 0 ? 0 : COLS-1, 0, dir) ];
+}
+
+/* ---------- scoring ---------- */
+function addScore(n){
+  S.score += n;
+  if(S.score >= S.nextLife){ S.lives++; S.nextLife += 12000; SFX.life(); }
+  if(S.score > S.high){ S.high = S.score; saveHigh(); }
+  paintHud();
+}
+
+/* ---------- sparks ---------- */
+function burst(x, y, color, n){
+  for(let i=0;i<n;i++){
+    const a = Math.random() * Math.PI * 2, s = 0.6 + Math.random()*2.1;
+    S.sparks.push({ x, y, vx:Math.cos(a)*s, vy:Math.sin(a)*s, life:14 + rnd(16), color });
+  }
+}
+
+/* ---------- collision helpers ---------- */
+function hitsShroomBox(x, y, hw, hh){
+  const c0 = colAt(x-hw), c1 = colAt(x+hw), r0 = rowAt(y-hh), r1 = rowAt(y+hh);
+  for(let r=r0;r<=r1;r++) for(let c=c0;c<=c1;c++){
+    if(!S.shroom[idx(c,r)]) continue;
+    const mx = cx(c), my = cy(r);
+    if(Math.abs(mx - x) < hw + 6 && Math.abs(my - y) < hh + 6) return true;
+  }
+  return false;
+}
+const near = (ax, ay, bx, by, d) => Math.abs(ax-bx) < d && Math.abs(ay-by) < d;
+
+function plantShroom(x, y){
+  const c = colAt(x), r = Math.max(0, Math.min(ROWS-1, rowAt(y)));
+  if(!S.shroom[idx(c,r)]) S.shroom[idx(c,r)] = 4;
+}
+
+/* ---------- input ---------- */
+const keys = Object.create(null);
+let pointer = null, pointerFire = false, usePointer = false;
+
+/* ---------- player ---------- */
+function movePlayer(){
+  const p = S.player, spd = 2.5, hw = 6, hh = 6;
+  let dx = 0, dy = 0;
+  if(usePointer && pointer){
+    const ddx = pointer.x - p.x, ddy = pointer.y - p.y;
+    if(Math.abs(ddx) > 1.5) dx = Math.sign(ddx) * Math.min(1, Math.abs(ddx)/spd);
+    if(Math.abs(ddy) > 1.5) dy = Math.sign(ddy) * Math.min(1, Math.abs(ddy)/spd);
+  } else {
+    if(keys.left) dx -= 1;
+    if(keys.right) dx += 1;
+    if(keys.up) dy -= 1;
+    if(keys.down) dy += 1;
+    if(dx && dy){ dx *= 0.7071; dy *= 0.7071; }
+  }
+  const minY = PLAYER_TOP * CELL + hh, maxY = H - hh - 1;
+  const nx = Math.max(hw+1, Math.min(W-hw-1, p.x + dx*spd));
+  if(!hitsShroomBox(nx, p.y, hw, hh)) p.x = nx;
+  const ny = Math.max(minY, Math.min(maxY, p.y + dy*spd));
+  if(!hitsShroomBox(p.x, ny, hw, hh)) p.y = ny;
+}
+
+function tryFire(){
+  const firing = keys.fire || pointerFire;
+  if(S.fireCool > 0) S.fireCool--;
+  if(!firing || S.fireCool > 0 || S.bullets.length >= 2) return;
+  S.bullets.push({ x: S.player.x, y: S.player.y - 8 });
+  S.fireCool = 7;
+  SFX.fire();
+}
+
+/* ---------- bullets ---------- */
+function updateBullets(){
+  for(let i=S.bullets.length-1;i>=0;i--){
+    const b = S.bullets[i];
+    let gone = false;
+    for(let s=0;s<3 && !gone;s++){          // sub-steps so fast shots cannot tunnel
+      b.y -= 3;
+      if(b.y < 0){ gone = true; break; }
+      gone = bulletHits(b);
+    }
+    if(gone) S.bullets.splice(i, 1);
+  }
+}
+
+function bulletHits(b){
+  /* centipede */
+  for(let gi=0; gi<S.groups.length; gi++){
+    const g = S.groups[gi];
+    for(let k=0;k<g.count;k++){
+      const p = segPos(g, k);
+      if(!near(b.x, b.y, p.x, p.y, 7)) continue;
+      const isHead = (k === 0);
+      addScore(isHead ? 100 : 10);
+      burst(p.x, p.y, isHead ? pal().head : pal().body, isHead ? 10 : 6);
+      plantShroom(p.x, p.y);
+      isHead ? SFX.head() : SFX.seg();
+      const parts = splitGroup(g, k);
+      S.groups.splice(gi, 1, ...parts);
+      return true;
+    }
+  }
+  /* spider */
+  const sp = S.spider;
+  if(sp && near(b.x, b.y, sp.x, sp.y, 9)){
+    const d = Math.hypot(sp.x - S.player.x, sp.y - S.player.y);
+    const pts = d < 28 ? 900 : d < 62 ? 600 : 300;
+    addScore(pts);
+    S.pops.push({ x:sp.x, y:sp.y, pts, t:70 });
+    burst(sp.x, sp.y, "#FF5D8F", 14);
+    SFX.bug();
+    S.spider = null;
+    S.spiderT = 200 + rnd(260);
+    return true;
+  }
+  /* flea */
+  const fl = S.flea;
+  if(fl && near(b.x, b.y, fl.x, fl.y, 8)){
+    fl.hp--;
+    if(fl.hp > 0){ fl.vy = 3.7; SFX.chip(); return true; }
+    addScore(200);
+    S.pops.push({ x:fl.x, y:fl.y, pts:200, t:70 });
+    burst(fl.x, fl.y, BONE, 12);
+    SFX.bug();
+    S.flea = null;
+    return true;
+  }
+  /* scorpion */
+  const sc = S.scorp;
+  if(sc && near(b.x, b.y, sc.x, sc.y, 9)){
+    addScore(1000);
+    S.pops.push({ x:sc.x, y:sc.y, pts:1000, t:80 });
+    burst(sc.x, sc.y, TOXIN, 14);
+    SFX.bug();
+    S.scorp = null;
+    S.scorpT = 500 + rnd(500);
+    return true;
+  }
+  /* mushroom */
+  const c = colAt(b.x), r = rowAt(b.y);
+  const i = idx(c, r);
+  if(S.shroom[i] > 0 && Math.abs(cy(r) - b.y) < 8){
+    S.shroom[i]--;
+    if(S.shroom[i] === 0){
+      S.poison[i] = 0;
+      addScore(1);
+      burst(cx(c), cy(r), pal().cap, 6);
+    }
+    SFX.chip();
+    return true;
+  }
+  return false;
+}
+
+/* ---------- enemies ---------- */
+function updateSpider(){
+  if(S.spider){
+    const sp = S.spider;
+    sp.x += sp.vx; sp.y += sp.vy;
+    const top = (PLAYER_TOP - 4) * CELL + 8, bot = H - 8;
+    if(sp.y < top){ sp.y = top; sp.vy = Math.abs(sp.vy); }
+    if(sp.y > bot){ sp.y = bot; sp.vy = -Math.abs(sp.vy); }
+    if(--sp.zig <= 0){ sp.vy = (Math.random() < 0.5 ? -1 : 1) * (0.9 + Math.random()*1.3); sp.zig = 22 + rnd(40); }
+    if(sp.x < -14 || sp.x > W+14){ S.spider = null; S.spiderT = 220 + rnd(300); return; }
+    if(Math.random() < 0.06){                       // spiders eat the field
+      const c = colAt(sp.x), r = rowAt(sp.y);
+      if(S.shroom[idx(c,r)]){ S.shroom[idx(c,r)] = 0; S.poison[idx(c,r)] = 0; burst(cx(c), cy(r), pal().mush, 4); }
+    }
+  } else if(--S.spiderT <= 0){
+    const fromLeft = Math.random() < 0.5;
+    const sp = Math.min(2.3, 1.05 + S.level * 0.09);
+    S.spider = {
+      x: fromLeft ? -12 : W+12, y: (ROWS-4)*CELL,
+      vx: fromLeft ? sp : -sp, vy: 1.1, zig: 20 + rnd(30)
+    };
+  }
+}
+
+function updateFlea(){
+  if(S.flea){
+    const f = S.flea;
+    f.y += f.vy;
+    if(f.y > f.lastPlant + CELL){
+      f.lastPlant = f.y;
+      if(f.y < H - CELL*2 && f.y > CELL && Math.random() < 0.62) plantShroom(f.x, f.y);
+    }
+    if(f.y > H + 10) S.flea = null;
+  } else if(S.mode === "play" && lowerShrooms() < 5 && (S.level >= 2 || lowerShrooms() < 3)){
+    if(--S.fleaT <= 0){
+      S.flea = { x: cx(rnd(COLS)), y: -CELL, vy: 1.9 + S.level*0.05, hp:2, lastPlant:-CELL };
+      S.fleaT = 200;
+    }
+  } else {
+    S.fleaT = 90;
+  }
+}
+
+function updateScorpion(){
+  if(S.scorp){
+    const s = S.scorp;
+    s.x += s.vx;
+    const c = colAt(s.x), r = rowAt(s.y);
+    if(S.shroom[idx(c,r)]) S.poison[idx(c,r)] = 1;
+    if(s.x < -16 || s.x > W+16){ S.scorp = null; S.scorpT = 480 + rnd(520); }
+  } else if(--S.scorpT <= 0 && S.level >= 2){
+    const fromLeft = Math.random() < 0.5;
+    S.scorp = {
+      x: fromLeft ? -14 : W+14,
+      y: cy(3 + rnd(PLAYER_TOP - 7)),
+      vx: (fromLeft ? 1 : -1) * (1.15 + S.level*0.05),
+      flip: !fromLeft
+    };
+  }
+}
+
+/* ---------- hazards vs the blaster ---------- */
+function playerHit(){
+  const p = S.player;
+  for(const g of S.groups){
+    for(let k=0;k<g.count;k++){
+      const s = segPos(g, k);
+      if(near(p.x, p.y, s.x, s.y, 10)) return true;
+    }
+  }
+  if(S.spider && near(p.x, p.y, S.spider.x, S.spider.y, 11)) return true;
+  if(S.flea && near(p.x, p.y, S.flea.x, S.flea.y, 10)) return true;
+  if(S.scorp && near(p.x, p.y, S.scorp.x, S.scorp.y, 10)) return true;
+  return false;
+}
+
+/* ---------- state machine ---------- */
+function newGame(){
+  S.score = 0; S.lives = 3; S.level = 1; S.nextLife = 12000;
+  S.bullets = []; S.sparks = []; S.pops = [];
+  S.player.x = W/2; S.player.y = H - CELL*1.5;
+  S.fleaT = 200;
+  seedField();
+  spawnWave();
+  S.mode = "wave"; S.timer = 90;
+  S.banner = "WAVE 1"; S.bannerT = 90;
+  paintHud();
+}
+
+function loseLife(){
+  S.lives--;
+  S.mode = "dying"; S.timer = 95;
+  S.bullets = [];
+  burst(S.player.x, S.player.y, CYAN, 26);
+  SFX.die();
+  paintHud();
+}
+
+function afterDeath(){
+  if(S.lives <= 0){
+    S.mode = "over";
+    S.banner = "GAME OVER"; S.bannerT = 0;
+    saveHigh();
+      try { parent.postMessage({ type:'arcade:gameover', game:'spore-field', score:S.score }, '*'); } catch(e){}
+    return;
+  }
+  regrow(false);
+  S.spider = null; S.flea = null; S.scorp = null;
+  S.spiderT = 240; S.scorpT = S.level >= 2 ? 420 : 99999; S.fleaT = 200;
+  respawnCentipede();
+  S.player.x = W/2; S.player.y = H - CELL*1.5;
+  S.mode = "wave"; S.timer = 70;
+  S.banner = "BLASTER READY"; S.bannerT = 70;
+}
+
+function nextWave(){
+  S.level++;
+  regrow(true);
+  spawnWave();
+  S.bullets = [];
+  S.mode = "wave"; S.timer = 85;
+  S.banner = "WAVE " + S.level; S.bannerT = 85;
+  SFX.wave();
+  paintHud();
+}
+
+function update(){
+  S.tick++;
+  for(let i=S.sparks.length-1;i>=0;i--){
+    const s = S.sparks[i];
+    s.x += s.vx; s.y += s.vy; s.vy += 0.06; s.life--;
+    if(s.life <= 0) S.sparks.splice(i,1);
+  }
+  for(let i=S.pops.length-1;i>=0;i--){
+    S.pops[i].t--; S.pops[i].y -= 0.25;
+    if(S.pops[i].t <= 0) S.pops.splice(i,1);
+  }
+  if(S.bannerT > 0) S.bannerT--;
+
+  if(S.mode === "wave"){
+    movePlayer();
+    if(--S.timer <= 0) S.mode = "play";
+    return;
+  }
+  if(S.mode === "dying"){
+    if(--S.timer <= 0) afterDeath();
+    return;
+  }
+  if(S.mode !== "play") return;
+
+  movePlayer();
+  tryFire();
+  updateBullets();
+  for(const g of S.groups) stepGroup(g);
+  updateSpider();
+  updateFlea();
+  updateScorpion();
+
+  if(S.pendingHeads > 0 && --S.headT <= 0){
+    const dir = Math.random() < 0.5 ? 1 : -1;
+    S.groups.push(makeGroup(1, dir > 0 ? 0 : COLS-1, 0, dir));
+    S.pendingHeads--;
+    S.headT = 300 + rnd(180);
+  }
+
+  if(playerHit()){ loseLife(); return; }
+  if(S.groups.length === 0){ nextWave(); }
+}
+
+/* ---------- render ---------- */
+function spr(map, x, y, color, flip){
+  ctx.fillStyle = color;
+  for(let r=0;r<8;r++){
+    const row = map[r];
+    for(let c=0;c<8;c++){
+      if(row[c] === ".") continue;
+      const px = flip ? (7-c) : c;
+      ctx.fillRect(x + px*2, y + r*2, 2, 2);
+    }
+  }
+}
+function sprSplit(map, x, y, top, bottom, splitRow){
+  for(let r=0;r<8;r++){
+    ctx.fillStyle = r < splitRow ? top : bottom;
+    const row = map[r];
+    for(let c=0;c<8;c++){
+      if(row[c] === ".") continue;
+      ctx.fillRect(x + c*2, y + r*2, 2, 2);
+    }
+  }
+}
+
+function drawField(){
+  const P = pal();
+  for(let r=0;r<ROWS;r++){
+    for(let c=0;c<COLS;c++){
+      const i = idx(c,r);
+      const hp = S.shroom[i];
+      if(!hp) continue;
+      const poisoned = S.poison[i];
+      sprSplit(MUSH_SPR[hp], c*CELL, r*CELL,
+        poisoned ? TOXIN_CAP : P.cap,
+        poisoned ? TOXIN : P.mush, 4);
+    }
+  }
+}
+
+function drawCentipede(){
+  const P = pal();
+  for(const g of S.groups){
+    for(let k=g.count-1;k>=0;k--){
+      const p = segPos(g, k);
+      const x = p.x - 8, y = p.y - 8;
+      const head = (k === 0);
+      const color = head ? P.head : P.body;
+      spr(head ? SPR.head : SPR.body, x, y, color);
+      /* legs */
+      ctx.fillStyle = color;
+      const phase = ((S.tick >> 2) + k) & 1;
+      ctx.fillRect(x - 2, y + (phase ? 4 : 10), 2, 2);
+      ctx.fillRect(x + 16, y + (phase ? 10 : 4), 2, 2);
+      if(head){
+        ctx.fillStyle = "#100C1C";
+        ctx.fillRect(x + 4, y + 6, 2, 2);
+        ctx.fillRect(x + 10, y + 6, 2, 2);
+      }
+    }
+  }
+}
+
+function drawEnemies(){
+  if(S.spider){
+    const s = S.spider;
+    spr(SPR.spider, s.x - 8, s.y - 8, "#FF5D8F");
+    ctx.fillStyle = "#FFD1E8";
+    ctx.fillRect(s.x - 4, s.y - 2, 2, 2);
+    ctx.fillRect(s.x + 2, s.y - 2, 2, 2);
+  }
+  if(S.flea){
+    const f = S.flea;
+    spr(SPR.flea, f.x - 8, f.y - 8, f.hp > 1 ? BONE : "#FFF3A0");
+  }
+  if(S.scorp){
+    const s = S.scorp;
+    spr(SPR.scorp, s.x - 8, s.y - 8, TOXIN, s.vx > 0);
+  }
+}
+
+function drawPlayer(){
+  if(S.mode === "dying" || S.mode === "title") return;
+  if(S.mode === "wave" && ((S.tick >> 2) & 1)) return;     // respawn blink
+  spr(SPR.ship, S.player.x - 8, S.player.y - 8, CYAN);
+  ctx.fillStyle = "#EAFFFF";
+  ctx.fillRect(S.player.x - 2, S.player.y - 8, 4, 4);
+}
+
+function drawShots(){
+  ctx.fillStyle = "#FFF3A0";
+  for(const b of S.bullets) ctx.fillRect(b.x - 1, b.y - 5, 2, 7);
+}
+
+function drawFx(){
+  for(const s of S.sparks){
+    ctx.globalAlpha = Math.min(1, s.life / 14);
+    ctx.fillStyle = s.color;
+    ctx.fillRect(s.x - 1, s.y - 1, 2, 2);
+  }
+  ctx.globalAlpha = 1;
+  ctx.font = '10px "Silkscreen", monospace';
+  ctx.textAlign = "center";
+  for(const p of S.pops){
+    ctx.globalAlpha = Math.min(1, p.t / 24);
+    ctx.fillStyle = "#FFF3A0";
+    ctx.fillText(String(p.pts), p.x, p.y);
+  }
+  ctx.globalAlpha = 1;
+}
+
+function panel(lines){
+  const pad = 18;
+  ctx.textAlign = "center";
+  let h = pad*2;
+  for(const l of lines) h += l.size + 12;
+  const y0 = H/2 - h/2;
+  ctx.fillStyle = "rgba(6,5,12,.86)";
+  ctx.fillRect(28, y0, W - 56, h);
+  ctx.strokeStyle = "rgba(92,225,230,.35)";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(28.5, y0 + 0.5, W - 57, h - 1);
+  let y = y0 + pad;
+  for(const l of lines){
+    y += l.size;
+    ctx.font = l.size + 'px "Silkscreen", monospace';
+    ctx.fillStyle = l.color;
+    ctx.fillText(l.text, W/2, y);
+    y += 12;
+  }
+}
+
+function render(){
+  ctx.fillStyle = "#04030A";
+  ctx.fillRect(0, 0, W, H);
+
+  /* blaster zone marker */
+  ctx.fillStyle = "rgba(92,225,230,.10)";
+  ctx.fillRect(0, PLAYER_TOP*CELL, W, 1);
+
+  drawField();
+  drawCentipede();
+  drawEnemies();
+  drawShots();
+  drawPlayer();
+  drawFx();
+
+  if(S.bannerT > 0 && S.banner && S.mode !== "over"){
+    ctx.textAlign = "center";
+    ctx.font = '16px "Silkscreen", monospace';
+    ctx.fillStyle = pal().head;
+    ctx.fillText(S.banner, W/2, H/2 - 40);
+  }
+  if(S.mode === "title"){
+    panel([
+      { text:"SPORE FIELD", size:20, color:CYAN },
+      { text:"CLEAR THE CENTIPEDE", size:10, color:"#9C93B8" },
+      { text:"SPACE OR CLICK TO START", size:12, color:"#FFF3A0" }
+    ]);
+  } else if(S.mode === "over"){
+    panel([
+      { text:"GAME OVER", size:20, color:"#FF5D8F" },
+      { text:"SCORE " + S.score, size:12, color:CYAN },
+      { text:"HIGH " + S.high, size:10, color:"#9C93B8" },
+      { text:"SPACE TO PLAY AGAIN", size:12, color:"#FFF3A0" }
+    ]);
+  } else if(S.paused){
+    panel([
+      { text:"PAUSED", size:20, color:CYAN },
+      { text:"P TO RESUME", size:10, color:"#9C93B8" }
+    ]);
+  }
+}
+
+/* ---------- HUD ---------- */
+const el = {
+  score: document.getElementById("score"),
+  high: document.getElementById("high"),
+  wave: document.getElementById("wave"),
+  lives: document.getElementById("lives")
+};
+const pad6 = n => String(Math.max(0, n)).padStart(6, "0");
+function paintHud(){
+  el.score.textContent = pad6(S.score);
+  el.high.textContent = pad6(S.high);
+  el.wave.textContent = String(S.level).padStart(2, "0");
+  el.lives.textContent = "";
+  const spare = Math.max(0, S.lives - (S.mode === "title" ? 0 : 1));
+  if(spare === 0){
+    const none = document.createElement("span");
+    none.className = "none";
+    none.textContent = "last one";
+    el.lives.appendChild(none);
+  } else {
+    for(let i=0;i<Math.min(spare, 8);i++){
+      const d = document.createElement("span");
+      d.className = "life";
+      el.lives.appendChild(d);
+    }
+  }
+}
+
+/* ---------- controls ---------- */
+const KEYMAP = {
+  ArrowLeft:"left", ArrowRight:"right", ArrowUp:"up", ArrowDown:"down",
+  a:"left", d:"right", w:"up", s:"down",
+  A:"left", D:"right", W:"up", S:"down",
+  " ":"fire", z:"fire", Z:"fire"
+};
+function startOrRestart(){
+  if(S.mode === "title" || S.mode === "over"){ newGame(); return true; }
+  return false;
+}
+addEventListener("keydown", e => {
+  const k = KEYMAP[e.key];
+  if(k){
+    e.preventDefault();
+    usePointer = false;
+    if(!(k === "fire" && startOrRestart())) keys[k] = true;
+    return;
+  }
+  if(e.key === "p" || e.key === "P" || e.key === "Escape"){
+    e.preventDefault();
+    togglePause();
+  } else if(e.key === "m" || e.key === "M"){
+    setSound(!sound);
+  } else if(e.key === "Enter"){
+    startOrRestart();
+  }
+});
+addEventListener("keyup", e => { const k = KEYMAP[e.key]; if(k){ e.preventDefault(); keys[k] = false; } });
+addEventListener("blur", () => { for(const k in keys) keys[k] = false; pointerFire = false; if(S.mode === "play") setPause(true); });
+
+function canvasPoint(e){
+  const r = cv.getBoundingClientRect();
+  return {
+    x: (e.clientX - r.left) * (W / r.width),
+    y: (e.clientY - r.top) * (H / r.height)
+  };
+}
+cv.addEventListener("pointermove", e => {
+  pointer = canvasPoint(e);
+  usePointer = true;
+});
+cv.addEventListener("pointerdown", e => {
+  e.preventDefault();
+  cv.setPointerCapture(e.pointerId);
+  cv.focus();
+  pointer = canvasPoint(e);
+  usePointer = true;
+  if(startOrRestart()) return;
+  pointerFire = true;
+});
+addEventListener("pointerup", () => { pointerFire = false; });
+cv.addEventListener("pointerleave", () => { pointerFire = false; });
+cv.addEventListener("contextmenu", e => e.preventDefault());
+
+/* ---------- buttons ---------- */
+const bSound = document.getElementById("btn-sound");
+const bPause = document.getElementById("btn-pause");
+const bReset = document.getElementById("btn-reset");
+function setSound(on){
+  sound = on;
+  bSound.setAttribute("aria-pressed", String(on));
+  bSound.textContent = on ? "Sound" : "Muted";
+}
+function setPause(on){
+  if(S.mode === "title" || S.mode === "over"){ S.paused = false; bPause.textContent = "Pause"; return; }
+  S.paused = on;
+  bPause.textContent = on ? "Resume" : "Pause";
+}
+function togglePause(){ setPause(!S.paused); }
+bSound.addEventListener("click", () => { setSound(!sound); bSound.blur(); });
+bPause.addEventListener("click", () => { togglePause(); bPause.blur(); });
+bReset.addEventListener("click", () => { newGame(); setPause(false); bReset.blur(); });
+
+/* ---------- loop ---------- */
+let acc = 0, last = performance.now();
+function frame(t){
+  let dt = t - last; last = t;
+  if(dt > 200) dt = 200;
+  acc += dt;
+  let guard = 0;
+  while(acc >= STEP && guard++ < 8){
+    if(!S.paused) update();
+    acc -= STEP;
+  }
+  if(acc > STEP) acc = 0;
+  render();
+  requestAnimationFrame(frame);
+}
+
+/* ---------- boot ---------- */
+seedField();
+S.pops = [];
+paintHud();
+if(document.fonts && document.fonts.load){
+  document.fonts.load('10px "Silkscreen"').catch(() => {});
+}
+requestAnimationFrame(frame);
+})();
+</script>

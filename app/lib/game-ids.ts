@@ -15,6 +15,10 @@ export const GAME_IDS = [
 	"bug-blaster",
 	"moon-patrol",
 	"galaxy-swarm",
+	"spore-field",
+	"lunar-buggy",
+	"galaga",
+	"defender",
 ] as const;
 
 export type GameId = (typeof GAME_IDS)[number];

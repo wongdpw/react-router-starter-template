@@ -1,0 +1,798 @@
+<title>Lunar Buggy</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Chakra+Petch:wght@400;600;700&display=swap">
+<style>
+  :root{
+    --void:#05060f;
+    --edge:#241a3d;
+    --beam:#6ff0d8;
+    --ink:#cfd4ef;
+    --dim:#7b7fa6;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    min-height:100vh;
+    background:
+      radial-gradient(120% 80% at 50% -10%, #1b1240 0%, rgba(11,8,26,0) 60%),
+      radial-gradient(80% 60% at 50% 120%, #26123a 0%, rgba(5,6,15,0) 65%),
+      var(--void);
+    color:var(--ink);
+    font-family:"Chakra Petch","Segoe UI",system-ui,sans-serif;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:18px;
+    padding:22px 16px 34px;
+  }
+
+  header{text-align:center;display:flex;flex-direction:column;gap:9px;align-items:center}
+  h1{
+    font-family:"Press Start 2P","Courier New",monospace;
+    font-size:clamp(15px,3.4vw,26px);
+    letter-spacing:.04em;
+    margin:0;
+    color:#f3f6ff;
+    text-shadow:0 0 2px #fff, 0 2px 0 #4a2a7a, 0 0 18px rgba(111,240,216,.45);
+    text-wrap:balance;
+  }
+  .tag{
+    font-size:12px;letter-spacing:.34em;text-transform:uppercase;color:var(--dim);
+    display:flex;gap:10px;align-items:center;margin:0;
+  }
+  .tag i{width:22px;height:1px;background:linear-gradient(90deg,transparent,var(--edge));display:block;font-style:normal}
+  .tag i:last-child{background:linear-gradient(90deg,var(--edge),transparent)}
+
+  .cabinet{
+    position:relative;
+    padding:14px;
+    border-radius:10px;
+    background:linear-gradient(180deg,#151033,#0a0819);
+    border:1px solid var(--edge);
+    box-shadow:0 0 0 1px rgba(255,255,255,.03) inset, 0 26px 60px -20px #000, 0 0 60px -18px rgba(111,240,216,.28);
+  }
+  .screen-wrap{position:relative;line-height:0;border-radius:3px;overflow:hidden;background:#05070f}
+  canvas{
+    display:block;
+    image-rendering:pixelated;
+    touch-action:none;
+    outline:none;
+  }
+  canvas:focus-visible{box-shadow:0 0 0 2px var(--beam)}
+  .scan{
+    position:absolute;inset:0;pointer-events:none;
+    background:
+      radial-gradient(120% 120% at 50% 50%, rgba(0,0,0,0) 55%, rgba(0,0,0,.5) 100%),
+      repeating-linear-gradient(180deg, rgba(0,0,0,.2) 0 1px, rgba(0,0,0,0) 1px 3px);
+    mix-blend-mode:multiply;
+    opacity:.75;
+  }
+
+  .legend{
+    display:flex;flex-wrap:wrap;gap:8px 20px;justify-content:center;
+    font-size:13px;color:var(--dim);letter-spacing:.02em;
+  }
+  .legend b{color:var(--ink);font-weight:600}
+  kbd{
+    font-family:"Press Start 2P",monospace;font-size:9px;
+    background:#161233;border:1px solid #2e2450;border-bottom-width:2px;
+    color:var(--beam);padding:5px 6px 4px;border-radius:3px;margin-right:4px;
+  }
+
+  .pad{display:none;gap:10px;width:100%;max-width:520px}
+  .pad button{
+    flex:1;min-height:64px;border-radius:8px;
+    background:#141032;color:var(--beam);
+    border:1px solid #2e2450;border-bottom-width:3px;
+    font-family:"Press Start 2P",monospace;font-size:10px;
+    -webkit-tap-highlight-color:transparent;user-select:none;
+  }
+  .pad button:active{background:#1e1748;transform:translateY(1px)}
+  @media (pointer:coarse){.pad{display:flex}}
+
+  footer{font-size:12px;color:#585c7d;letter-spacing:.12em;text-transform:uppercase;text-align:center}
+</style>
+
+<header>
+  <h1>LUNAR BUGGY</h1>
+  <p class="tag"><i></i>Sector 7 supply run<i></i></p>
+</header>
+
+<div class="cabinet">
+  <div class="screen-wrap">
+    <canvas id="screen" tabindex="0" aria-label="Lunar Buggy arcade game"></canvas>
+    <div class="scan"></div>
+  </div>
+</div>
+
+<div class="pad">
+  <button id="bLeft" aria-label="Slow down">SLOW</button>
+  <button id="bRight" aria-label="Speed up">FAST</button>
+  <button id="bJump" aria-label="Jump">JUMP</button>
+  <button id="bFire" aria-label="Fire">FIRE</button>
+</div>
+
+<div class="legend">
+  <span><kbd>&larr;</kbd><kbd>&rarr;</kbd><b>throttle</b></span>
+  <span><kbd>SPACE</kbd><b>jump</b></span>
+  <span><kbd>X</kbd><b>fire (forward + up)</b></span>
+  <span><kbd>P</kbd><b>pause</b></span>
+  <span><kbd>M</kbd><b>mute</b></span>
+</div>
+
+<footer>26 checkpoints per course &middot; craters must be jumped &middot; rocks can be shot</footer>
+
+<script>
+(function(){
+"use strict";
+
+/* ---------- screen ---------- */
+var W=384,H=216,GY=168,PX=88;
+var cv=document.getElementById('screen');
+var ctx=cv.getContext('2d');
+cv.width=W; cv.height=H; ctx.imageSmoothingEnabled=false;
+
+function fit(){
+  var availW=Math.min(window.innerWidth-32,1152);
+  var availH=window.innerHeight-180;
+  var s=Math.min(availW/W, availH/H);
+  if(s>=1) s=Math.max(1,Math.floor(s*2)/2); else s=Math.max(.45,s);
+  cv.style.width=(W*s)+'px'; cv.style.height=(H*s)+'px';
+}
+window.addEventListener('resize',fit); fit();
+
+/* ---------- palette ---------- */
+var C={
+  star:'#e8ecff',
+  mtnFar:'#2a1c4d', mtnNear:'#3d2566',
+  city:'#1d1540', cityLit:'#6ff0d8',
+  dune:'#6d4630',
+  ground:'#c08a4e', groundTop:'#e8b877', groundDeep:'#7d5228',
+  pit:'#2a1608', pitDark:'#100801',
+  rock:'#9a7145', rockLit:'#d1a468',
+  body:'#dfe9ff', bodyDark:'#5f7bc0', tire:'#171a2c', hub:'#8fa4d0',
+  shot:'#ffe27a', shotUp:'#7ff5ff',
+  ufo:'#ff4f7d', ufoDark:'#8e1f4c', ufoLit:'#ffe27a',
+  tank:'#b8407a', tankDark:'#5c1c3c',
+  hud:'#6ff0d8', hudDim:'#3c6b74', hudWarn:'#ffc24a'
+};
+var FONT="'Press Start 2P', monospace";
+
+/* ---------- audio ---------- */
+var actx=null, muted=false;
+function ac(){
+  try{
+    if(!actx){ var A=window.AudioContext||window.webkitAudioContext; if(A) actx=new A(); }
+    if(actx && actx.state==='suspended') actx.resume();
+  }catch(e){}
+  return actx;
+}
+function beep(f,dur,type,vol,slide){
+  var a=ac(); if(!a||muted) return;
+  var o=a.createOscillator(), g=a.createGain(), t=a.currentTime;
+  o.type=type||'square';
+  o.frequency.setValueAtTime(f,t);
+  if(slide) o.frequency.exponentialRampToValueAtTime(Math.max(28,slide),t+dur);
+  g.gain.setValueAtTime(vol||.06,t);
+  g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+  o.connect(g); g.connect(a.destination); o.start(t); o.stop(t+dur+.02);
+}
+function noiseBurst(dur,vol){
+  var a=ac(); if(!a||muted) return;
+  var n=Math.floor(a.sampleRate*dur), buf=a.createBuffer(1,n,a.sampleRate), d=buf.getChannelData(0);
+  for(var i=0;i<n;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/n,1.6);
+  var s=a.createBufferSource(); s.buffer=buf;
+  var g=a.createGain(); g.gain.value=vol||.16;
+  var f=a.createBiquadFilter(); f.type='lowpass'; f.frequency.value=1500;
+  s.connect(f); f.connect(g); g.connect(a.destination); s.start();
+}
+var sfx={
+  fire:function(){ beep(880,.07,'square',.05,220); },
+  jump:function(){ beep(220,.16,'square',.06,620); },
+  hit:function(){ noiseBurst(.16,.13); beep(160,.12,'sawtooth',.05,60); },
+  boom:function(){ noiseBurst(.55,.28); beep(90,.5,'sawtooth',.09,30); },
+  check:function(){ beep(660,.08,'square',.06); setTimeout(function(){beep(990,.12,'square',.06);},90); },
+  clear:function(){ [523,659,784,1046].forEach(function(f,i){ setTimeout(function(){beep(f,.16,'square',.06);}, i*110); }); }
+};
+
+/* ---------- rng ---------- */
+function mulberry32(a){
+  return function(){
+    a|=0; a=a+0x6D2B79F5|0;
+    var t=Math.imul(a^a>>>15,1|a);
+    t=t+Math.imul(t^t>>>7,61|t)^t;
+    return ((t^t>>>14)>>>0)/4294967296;
+  };
+}
+
+/* ---------- course layout ---------- */
+var SEG=640, SEGS=26, LEN=SEG*SEGS, CHUNK=160;
+var LETTERS='ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+/* ---------- state ---------- */
+var state='title', paused=false;
+var score=0, hi=0, lives=3, course=0, lastCP=0, cpIndex=0;
+var cameraX=0, speed=2.2, tick=0;
+var py=GY, vy=0, onGround=true, hopping=false, wheelSpin=0, hopCool=0, fireCool=0, thrust=0;
+var bullets=[], upshots=[], ufos=[], bombs=[], tanks=[], ebullets=[], parts=[], pops=[];
+var dynCraters=[], destroyed={}, deadTimer=0, clearTimer=0, flash=0;
+var ufoTimer=140, tankTimer=420;
+var stars=[];
+(function(){ var r=mulberry32(1337); for(var i=0;i<70;i++) stars.push({x:r()*W, y:26+r()*(GY-58), b:r()}); })();
+
+try{ hi=parseInt(localStorage.getItem('lunarBuggyHi')||'0',10)||0; }catch(e){ hi=0; }
+function saveHi(){ try{ localStorage.setItem('lunarBuggyHi',String(hi)); }catch(e){} }
+
+/* ---------- input ---------- */
+var keys={};
+var K_LEFT=['ArrowLeft','KeyA'], K_RIGHT=['ArrowRight','KeyD'],
+    K_JUMP=['Space','ArrowUp','KeyW'], K_FIRE=['KeyX','KeyZ','Enter','KeyJ'];
+function held(list){ for(var i=0;i<list.length;i++) if(keys[list[i]]) return true; return false; }
+
+window.addEventListener('keydown',function(e){
+  if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Space'].indexOf(e.code)>=0) e.preventDefault();
+  if(!keys[e.code]){
+    if(e.code==='KeyP' && (state==='play'||state==='dying')) paused=!paused;
+    if(e.code==='KeyM') muted=!muted;
+    if((state==='title'||state==='over') && (K_JUMP.indexOf(e.code)>=0 || K_FIRE.indexOf(e.code)>=0)){ ac(); startRun(); }
+  }
+  keys[e.code]=true;
+});
+window.addEventListener('keyup',function(e){ keys[e.code]=false; });
+window.addEventListener('blur',function(){ keys={}; });
+
+function bindPad(id,code){
+  var el=document.getElementById(id); if(!el) return;
+  var down=function(e){ e.preventDefault(); ac(); keys[code]=true;
+                        if(state==='title'||state==='over') startRun(); };
+  var up=function(e){ e.preventDefault(); keys[code]=false; };
+  el.addEventListener('pointerdown',down);
+  el.addEventListener('pointerup',up);
+  el.addEventListener('pointercancel',up);
+  el.addEventListener('pointerleave',up);
+}
+bindPad('bLeft','ArrowLeft'); bindPad('bRight','ArrowRight');
+bindPad('bJump','Space'); bindPad('bFire','KeyX');
+cv.addEventListener('pointerdown',function(){ ac(); cv.focus(); if(state==='title'||state==='over') startRun(); });
+
+/* ---------- terrain ---------- */
+function obChance(){ return Math.min(.78, .5+course*.07); }
+
+function obstaclesIn(x0,x1){
+  var out=[], c0=Math.floor(x0/CHUNK), c1=Math.floor(x1/CHUNK);
+  for(var c=Math.max(0,c0); c<=c1; c++){
+    if(destroyed[c]) continue;
+    var r=mulberry32(course*99991+c*7919+4211);
+    if(r()>obChance()) continue;
+    var x=c*CHUNK+24+r()*100;
+    if(x%SEG<200) continue;              /* leave every checkpoint landing clear */
+    if(x>LEN-160) continue;
+    var roll=r(), o;
+    if(roll<.44){
+      var w=16+Math.floor(r()*14);
+      if(course>0 && r()<.35) w+=Math.floor(r()*12);
+      o={k:'crater', x:x, w:Math.min(40,w), id:c};
+    } else if(roll<.8){
+      o={k:'rock', x:x, w:13, h:11+Math.floor(r()*4), id:c};
+    } else {
+      o={k:'bump', x:x, w:24, id:c};
+    }
+    out.push(o);
+  }
+  return out;
+}
+
+function cratersNear(x0,x1){
+  var list=[], o=obstaclesIn(x0,x1), i;
+  for(i=0;i<o.length;i++) if(o[i].k==='crater') list.push(o[i]);
+  for(i=0;i<dynCraters.length;i++){
+    var d=dynCraters[i];
+    if(d.x+d.w>x0 && d.x<x1) list.push(d);
+  }
+  return list;
+}
+
+/* ---------- run control ---------- */
+function startRun(){
+  score=0; lives=3; course=0; paused=false; flash=0;
+  resetCourse(); softReset(); state='play';
+}
+function resetCourse(){ cameraX=0; lastCP=0; cpIndex=0; }
+function softReset(){
+  cameraX=Math.max(0,lastCP*SEG-30); speed=2.2;
+  py=GY; vy=0; onGround=true; hopping=false; hopCool=0; fireCool=0; thrust=0;
+  bullets=[]; upshots=[]; ufos=[]; bombs=[]; tanks=[]; ebullets=[]; parts=[]; pops=[];
+  dynCraters=[]; destroyed={}; ufoTimer=150; tankTimer=430;
+}
+function addScore(n,x,y){
+  score+=n;
+  if(score>hi){ hi=score; saveHi(); }
+  if(x!==undefined) pops.push({x:x,y:y,t:44,n:n});
+}
+function crash(){
+  if(state!=='play') return;
+  state='dying'; deadTimer=104; flash=8; sfx.boom();
+  var wx=cameraX+PX;
+  for(var i=0;i<34;i++){
+    var a=Math.random()*Math.PI*2, s=.6+Math.random()*3.1;
+    parts.push({x:wx+8+Math.random()*20, y:py-10-Math.random()*10,
+                vx:Math.cos(a)*s, vy:Math.sin(a)*s-1.4, t:34+Math.random()*30, c:'#ffd27a'});
+  }
+}
+
+/* ---------- update ---------- */
+function update(){
+  tick++;
+  if(flash>0) flash--;
+  var i;
+  for(i=pops.length-1;i>=0;i--){ pops[i].t--; pops[i].y-=.35; if(pops[i].t<=0) pops.splice(i,1); }
+
+  if(state==='title'){
+    cameraX+=2.6; wheelSpin+=.36;
+    vy+=.28; py+=vy;
+    if(py>=GY){ py=GY; vy=0; onGround=true; }
+    if(onGround){
+      var twx=cameraX+PX, ah=obstaclesIn(cameraX,cameraX+W);
+      for(i=0;i<ah.length;i++){
+        if(ah[i].k==='bump') continue;
+        var gap=ah[i].x-(twx+30);
+        if(gap>0 && gap<16){ vy=-4.75; onGround=false; break; }
+      }
+    }
+    return;
+  }
+
+  if(state==='dying'){
+    stepParticles(); deadTimer--;
+    if(deadTimer<=0){
+      lives--;
+      if(lives<=0){ state='over'; saveHi();
+      try { parent.postMessage({ type:'arcade:gameover', game:'lunar-buggy', score:score }, '*'); } catch(e){} }
+      else { softReset(); state='play'; }
+    }
+    return;
+  }
+  if(state==='clear'){
+    stepParticles(); clearTimer--; cameraX+=2.2; wheelSpin+=.26;
+    if(clearTimer<=0){ course++; resetCourse(); softReset(); state='play'; }
+    return;
+  }
+  if(state!=='play') return;
+
+  /* throttle */
+  var target=2.2;
+  if(held(K_RIGHT)) target=3.5;
+  else if(held(K_LEFT)) target=1.15;
+  speed+=(target-speed)*.09;
+  thrust = held(K_RIGHT) ? Math.min(1,thrust+.2) : Math.max(0,thrust-.12);
+  cameraX+=speed;
+  wheelSpin+=speed*.14;
+
+  var wx=cameraX+PX;
+
+  /* checkpoints and course end */
+  var ci=Math.floor(wx/SEG);
+  if(ci>cpIndex && ci<SEGS){ cpIndex=ci; lastCP=ci; addScore(120); sfx.check(); }
+  if(wx>=LEN){ state='clear'; clearTimer=180; addScore(1000*(course+1)); sfx.clear(); return; }
+
+  /* jump + gravity */
+  if(held(K_JUMP) && (onGround||hopping)){ vy=-4.75; onGround=false; hopping=false; sfx.jump(); }
+  vy+=.28; py+=vy;
+  if(py>=GY){ py=GY; vy=0; onGround=true; hopping=false; }
+
+  /* fire: forward and upward at once */
+  if(fireCool>0) fireCool--;
+  if(held(K_FIRE) && fireCool<=0 && bullets.length<4){
+    fireCool=11;
+    bullets.push({x:wx+33, y:py-14, vx:5.2+speed});
+    upshots.push({x:wx+16, y:py-22, vy:-4.9});
+    sfx.fire();
+  }
+
+  /* rocks and bumps */
+  var obs=obstaclesIn(cameraX-40, cameraX+W+80);
+  for(i=0;i<obs.length;i++){
+    var o=obs[i];
+    if(o.k==='rock'){
+      if(wx+31>o.x && wx+2<o.x+o.w && py>GY-o.h+3){ crash(); return; }
+    } else if(o.k==='bump'){
+      if(onGround && hopCool<=0 && wx+26>o.x && wx+4<o.x+o.w){
+        vy=-2.05; onGround=false; hopping=true; hopCool=16; beep(300,.05,'triangle',.04);
+      }
+    }
+  }
+  if(hopCool>0) hopCool--;
+
+  /* craters swallow the buggy */
+  if(onGround){
+    var cr=cratersNear(cameraX-40, cameraX+W+40);
+    for(i=0;i<cr.length;i++){
+      var c=cr[i];
+      if((wx+6>c.x+2 && wx+6<c.x+c.w-2) || (wx+27>c.x+2 && wx+27<c.x+c.w-2)){ crash(); return; }
+    }
+  }
+
+  /* spawns */
+  ufoTimer--; tankTimer--;
+  if(ufoTimer<=0){
+    ufoTimer=Math.max(90,240-course*26)+Math.floor(Math.random()*110);
+    ufos.push({x:cameraX+W+16, y:36+Math.random()*38, vx:-(.7+Math.random()*.9),
+               ph:Math.random()*6.28, cool:40+Math.random()*40});
+  }
+  if(tankTimer<=0 && (course>0 || wx>SEG*5)){
+    tankTimer=Math.max(230,520-course*50)+Math.floor(Math.random()*220);
+    tanks.push({x:cameraX+W+20, cool:70+Math.random()*60});
+  }
+
+  /* ufos drop bombs that dig fresh craters */
+  for(i=ufos.length-1;i>=0;i--){
+    var u=ufos[i];
+    u.x+=u.vx; u.ph+=.07; u.y+=Math.sin(u.ph)*.5; u.cool--;
+    if(u.cool<=0 && Math.abs(u.x-wx)<70 && u.x>cameraX && bombs.length<4){
+      u.cool=90+Math.random()*80;
+      bombs.push({x:u.x, y:u.y+6, vy:1.15});
+      beep(500,.08,'triangle',.04,180);
+    }
+    if(u.x<cameraX-40) ufos.splice(i,1);
+  }
+  for(i=bombs.length-1;i>=0;i--){
+    var b=bombs[i]; b.y+=b.vy; b.vy+=.03;
+    if(b.x>wx-4 && b.x<wx+34 && b.y>py-22 && b.y<py){ crash(); return; }
+    if(b.y>=GY-1){
+      dynCraters.push({x:b.x-13,w:26});
+      if(dynCraters.length>26) dynCraters.shift();
+      burst(b.x,GY-2,12,'#ffb648'); noiseBurst(.2,.12);
+      bombs.splice(i,1);
+    } else if(b.x<cameraX-30) bombs.splice(i,1);
+  }
+
+  /* ground tanks */
+  for(i=tanks.length-1;i>=0;i--){
+    var t=tanks[i]; t.x-=.55; t.cool--;
+    if(t.cool<=0 && t.x>wx+40 && t.x<cameraX+W){
+      t.cool=100+Math.random()*70;
+      ebullets.push({x:t.x-14, y:GY-13, vx:-2.6});
+      beep(200,.07,'square',.04,90);
+    }
+    if(t.x<cameraX-30) tanks.splice(i,1);
+  }
+  for(i=ebullets.length-1;i>=0;i--){
+    var eb=ebullets[i]; eb.x+=eb.vx;
+    if(eb.x>wx && eb.x<wx+34 && eb.y>py-20 && eb.y<py-1){ crash(); return; }
+    if(eb.x<cameraX-20) ebullets.splice(i,1);
+  }
+
+  /* player shots */
+  for(i=bullets.length-1;i>=0;i--){
+    var s=bullets[i]; s.x+=s.vx;
+    if(s.x>cameraX+W+10){ bullets.splice(i,1); continue; }
+    if(hitStuff(s.x,s.y,true)) bullets.splice(i,1);
+  }
+  for(i=upshots.length-1;i>=0;i--){
+    var us=upshots[i]; us.y+=us.vy; us.x+=speed*.15;
+    if(us.y<22){ upshots.splice(i,1); continue; }
+    if(hitStuff(us.x,us.y,false)) upshots.splice(i,1);
+  }
+
+  stepParticles();
+}
+
+function hitStuff(x,y,forward){
+  var i;
+  for(i=ufos.length-1;i>=0;i--){
+    var u=ufos[i];
+    if(Math.abs(x-u.x)<11 && Math.abs(y-u.y)<7){
+      burst(u.x,u.y,14,C.ufoLit); addScore(200,u.x,u.y); sfx.hit(); ufos.splice(i,1); return true;
+    }
+  }
+  for(i=bombs.length-1;i>=0;i--){
+    var b=bombs[i];
+    if(Math.abs(x-b.x)<6 && Math.abs(y-b.y)<6){
+      burst(b.x,b.y,9,'#ffd76a'); addScore(80,b.x,b.y); sfx.hit(); bombs.splice(i,1); return true;
+    }
+  }
+  if(forward){
+    for(i=tanks.length-1;i>=0;i--){
+      var t=tanks[i];
+      if(x>t.x-13 && x<t.x+13 && y>GY-18){
+        burst(t.x,GY-8,18,C.tank); addScore(300,t.x,GY-24); sfx.hit(); tanks.splice(i,1); return true;
+      }
+    }
+    var obs=obstaclesIn(cameraX-40, cameraX+W+80);
+    for(i=0;i<obs.length;i++){
+      var o=obs[i];
+      if(o.k==='rock' && x>o.x-2 && x<o.x+o.w+2 && y>GY-o.h-4){
+        destroyed[o.id]=1;
+        burst(o.x+o.w/2, GY-o.h/2, 12, C.rockLit);
+        addScore(50,o.x,GY-26); sfx.hit(); return true;
+      }
+    }
+  }
+  return false;
+}
+
+function burst(x,y,n,col){
+  for(var i=0;i<n;i++){
+    var a=Math.random()*Math.PI*2, s=.5+Math.random()*2.2;
+    parts.push({x:x,y:y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-.5,t:18+Math.random()*22,c:col});
+  }
+}
+function stepParticles(){
+  for(var i=parts.length-1;i>=0;i--){
+    var p=parts[i]; p.x+=p.vx; p.y+=p.vy; p.vy+=.13; p.t--;
+    if(p.t<=0) parts.splice(i,1);
+  }
+}
+
+/* ---------- rendering ---------- */
+function drawSky(){
+  var g=ctx.createLinearGradient(0,0,0,GY);
+  g.addColorStop(0,'#07071c'); g.addColorStop(.55,'#231a52'); g.addColorStop(1,'#5a2b57');
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,GY);
+
+  /* ringed planet, barely moving */
+  var px=((-cameraX*.04)%(W+220)+W+220)%(W+220)-60;
+  ctx.fillStyle='#3b2b6e'; ctx.beginPath(); ctx.arc(px,62,26,0,6.2832); ctx.fill();
+  ctx.fillStyle='#4d3a8c'; ctx.beginPath(); ctx.arc(px-7,55,18,0,6.2832); ctx.fill();
+  ctx.strokeStyle='rgba(160,140,230,.55)'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.ellipse(px,64,38,7,-.28,0,6.2832); ctx.stroke();
+}
+function drawStars(){
+  for(var i=0;i<stars.length;i++){
+    var s=stars[i];
+    var x=((s.x-cameraX*.06)%W+W)%W;
+    var tw=(tick*.04+s.b*7);
+    ctx.fillStyle= (Math.sin(tw)>.4) ? '#ffffff' : C.star;
+    ctx.globalAlpha=.35+s.b*.55;
+    ctx.fillRect(Math.floor(x),Math.floor(s.y),1,1);
+  }
+  ctx.globalAlpha=1;
+}
+function ridge(scale,amp,base,phase,color){
+  ctx.fillStyle=color;
+  ctx.beginPath(); ctx.moveTo(0,GY);
+  for(var x=0;x<=W;x+=3){
+    var wx=(cameraX*scale+x)*.013+phase;
+    var y=base-amp*(.55+.45*Math.abs(Math.sin(wx)))-amp*.3*Math.sin(wx*2.7+1.1);
+    ctx.lineTo(x,y);
+  }
+  ctx.lineTo(W,GY); ctx.closePath(); ctx.fill();
+}
+function drawCity(){
+  var scale=.42, base=GY-4;
+  var x0=cameraX*scale-40, x1=x0+W+80;
+  var b0=Math.floor(x0/34), b1=Math.floor(x1/34);
+  for(var b=b0;b<=b1;b++){
+    var r=mulberry32(b*5387+91)
+    var rr=r();
+    var w=14+Math.floor(rr*16);
+    var h=18+Math.floor(r()*34);
+    var sx=Math.floor(b*34-x0-40+ r()*6);
+    ctx.fillStyle=C.city; ctx.fillRect(sx,base-h,w,h);
+    ctx.fillStyle='#2b1f57'; ctx.fillRect(sx,base-h,w,2);
+    if(rr>.6){ ctx.fillStyle=C.city; ctx.fillRect(sx+Math.floor(w/2)-1,base-h-7,3,7); }
+    ctx.fillStyle='rgba(111,240,216,.5)';
+    for(var wy=base-h+5; wy<base-4; wy+=6){
+      for(var wxp=sx+3; wxp<sx+w-3; wxp+=5){
+        if(((wxp*7+wy*13+b*31)%11)>6) ctx.fillRect(wxp,wy,2,2);
+      }
+    }
+  }
+}
+function drawGround(){
+  ctx.fillStyle=C.ground; ctx.fillRect(0,GY,W,H-GY);
+  ctx.fillStyle=C.groundTop; ctx.fillRect(0,GY,W,2);
+  ctx.fillStyle=C.groundDeep; ctx.fillRect(0,GY+16,W,H-GY-16);
+  ctx.fillStyle='rgba(60,30,10,.35)';
+  var start=Math.floor(cameraX/17)*17;
+  for(var x=start;x<cameraX+W+17;x+=17){
+    var r=mulberry32(Math.floor(x/17))();
+    ctx.fillRect(Math.floor(x-cameraX), GY+4+Math.floor(r*10), 5+Math.floor(r*7), 1);
+  }
+}
+function drawCrater(sx,w){
+  ctx.fillStyle=C.pit;
+  ctx.beginPath();
+  ctx.moveTo(sx,GY); ctx.lineTo(sx+5,GY+13); ctx.lineTo(sx+w-5,GY+13); ctx.lineTo(sx+w,GY);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle=C.pitDark; ctx.fillRect(sx+5,GY+8,w-10,6);
+  ctx.fillStyle=C.groundTop; ctx.fillRect(sx-3,GY-1,3,2); ctx.fillRect(sx+w,GY-1,3,2);
+  ctx.fillStyle='rgba(0,0,0,.35)'; ctx.fillRect(sx,GY,w,2);
+}
+function drawRock(sx,w,h){
+  ctx.fillStyle=C.rock;
+  ctx.beginPath();
+  ctx.moveTo(sx,GY); ctx.lineTo(sx+2,GY-h+3); ctx.lineTo(sx+w*.45,GY-h);
+  ctx.lineTo(sx+w-1,GY-h+4); ctx.lineTo(sx+w,GY); ctx.closePath(); ctx.fill();
+  ctx.fillStyle=C.rockLit; ctx.fillRect(sx+3,GY-h+4,3,2);
+  ctx.fillStyle='rgba(0,0,0,.3)'; ctx.fillRect(sx+w-4,GY-h+5,3,h-6);
+}
+function drawBump(sx,w){
+  ctx.fillStyle='#cf9a5e';
+  ctx.beginPath(); ctx.moveTo(sx,GY);
+  ctx.quadraticCurveTo(sx+w/2,GY-8,sx+w,GY); ctx.closePath(); ctx.fill();
+  ctx.fillStyle=C.groundTop; ctx.fillRect(sx+w/2-3,GY-6,6,1);
+}
+function drawBuggy(sx,bottom,spin,flame){
+  ctx.fillStyle='rgba(0,0,0,.3)';
+  ctx.fillRect(Math.round(sx+3),GY-1,28,2);
+  var b=Math.round(bottom), x=Math.round(sx), i;
+  if(flame>0){
+    ctx.fillStyle=(tick%4<2)?'#ffd27a':'#ff8a3a';
+    ctx.beginPath(); ctx.moveTo(x+1,b-11); ctx.lineTo(x-3-flame*5,b-9); ctx.lineTo(x+1,b-7);
+    ctx.closePath(); ctx.fill();
+  }
+  var ws=[6,17,28];
+  for(i=0;i<3;i++){
+    var cxp=x+ws[i], cyp=b-4;
+    ctx.fillStyle=C.tire; ctx.beginPath(); ctx.arc(cxp,cyp,4.3,0,6.2832); ctx.fill();
+    ctx.strokeStyle=C.hub; ctx.lineWidth=1; ctx.beginPath();
+    for(var k=0;k<3;k++){
+      var a=spin+k*2.0944;
+      ctx.moveTo(cxp,cyp); ctx.lineTo(cxp+Math.cos(a)*3.1, cyp+Math.sin(a)*3.1);
+    }
+    ctx.stroke();
+  }
+  ctx.fillStyle=C.bodyDark; ctx.fillRect(x+2,b-11,30,5);
+  ctx.fillStyle=C.body; ctx.fillRect(x+3,b-13,28,2);
+  ctx.fillStyle=C.body; ctx.fillRect(x+8,b-20,12,7);
+  ctx.fillStyle='#26356b'; ctx.fillRect(x+10,b-18,8,4);
+  ctx.fillStyle=C.body; ctx.fillRect(x+22,b-17,5,5); ctx.fillRect(x+27,b-16,8,2);
+  ctx.fillRect(x+13,b-24,3,5);
+  ctx.fillStyle=C.hud; ctx.fillRect(x+34,b-16,1,2);
+}
+function drawUfo(sx,sy){
+  var x=Math.round(sx), y=Math.round(sy);
+  ctx.fillStyle=C.ufoDark; ctx.beginPath(); ctx.ellipse(x,y+2,10,3.4,0,0,6.2832); ctx.fill();
+  ctx.fillStyle=C.ufo;    ctx.beginPath(); ctx.ellipse(x,y,9,2.6,0,0,6.2832); ctx.fill();
+  ctx.fillStyle='#ffd7e6'; ctx.beginPath(); ctx.arc(x,y-1,3.6,Math.PI,0); ctx.fill();
+  if((tick>>3)%2===0){ ctx.fillStyle=C.ufoLit; ctx.fillRect(x-7,y+1,2,2); ctx.fillRect(x+5,y+1,2,2); }
+  else { ctx.fillStyle=C.shotUp; ctx.fillRect(x-1,y+2,2,2); }
+}
+function drawTank(sx){
+  var x=Math.round(sx);
+  ctx.fillStyle=C.tankDark; ctx.fillRect(x-11,GY-8,22,7);
+  ctx.fillStyle=C.tank;     ctx.fillRect(x-8,GY-14,14,6);
+  ctx.fillStyle=C.tankDark; ctx.fillRect(x-15,GY-13,7,2);
+  ctx.fillStyle='#150a12';
+  ctx.fillRect(x-9,GY-2,4,2); ctx.fillRect(x-2,GY-2,4,2); ctx.fillRect(x+5,GY-2,4,2);
+  if((tick>>2)%2===0){ ctx.fillStyle=C.ufoLit; ctx.fillRect(x+3,GY-13,2,2); }
+}
+function pad(n,len){ var s=String(Math.max(0,Math.floor(n))); while(s.length<len) s='0'+s; return s; }
+function ctext(t,y,size,col){
+  ctx.font=size+'px '+FONT; ctx.textAlign='center'; ctx.fillStyle=col;
+  ctx.fillText(t,W/2,y); ctx.textAlign='left';
+}
+function drawHUD(){
+  ctx.fillStyle='rgba(6,7,18,.94)'; ctx.fillRect(0,0,W,24);
+  ctx.fillStyle=C.hudDim; ctx.fillRect(0,24,W,1);
+  ctx.font='6px '+FONT; ctx.textBaseline='top';
+
+  ctx.fillStyle=C.hud;  ctx.fillText('SCORE',6,4);
+  ctx.fillStyle='#fff'; ctx.fillText(pad(score,6),44,4);
+  ctx.fillStyle=C.hudWarn; ctx.fillText('COURSE '+(course+1),148,4);
+  ctx.fillStyle=C.hud;  ctx.fillText('HI',298,4);
+  ctx.fillStyle='#fff'; ctx.fillText(pad(hi,6),316,4);
+
+  var bx=6, bw=250, by=15, p=Math.min(1,Math.max(0,(cameraX+PX)/LEN));
+  ctx.fillStyle='#1a1f3c'; ctx.fillRect(bx,by,bw,5);
+  ctx.fillStyle=C.hudDim; ctx.fillRect(bx,by,bw*p,5);
+  ctx.fillStyle='rgba(0,0,0,.5)';
+  for(var i=1;i<SEGS;i++) ctx.fillRect(bx+Math.round(bw*i/SEGS),by,1,5);
+  ctx.fillStyle=C.hud; ctx.fillRect(Math.round(bx+bw*p)-1,by-2,3,9);
+  ctx.fillStyle='#fff';
+  ctx.fillText(LETTERS.charAt(Math.min(SEGS-1,Math.floor((cameraX+PX)/SEG))), bx+bw+8, 15);
+
+  for(var l=0;l<Math.max(0,lives-1);l++){
+    var lx=298+l*16;
+    ctx.fillStyle=C.bodyDark; ctx.fillRect(lx,17,12,3);
+    ctx.fillStyle=C.body;     ctx.fillRect(lx+3,14,6,3);
+    ctx.fillStyle=C.tire;     ctx.fillRect(lx+1,20,3,2); ctx.fillRect(lx+8,20,3,2);
+  }
+}
+
+function render(){
+  drawSky(); drawStars();
+  ridge(.16,26,GY-26,0.4,C.mtnFar);
+  ridge(.28,20,GY-14,2.9,C.mtnNear);
+  drawCity();
+  ridge(.7,11,GY+1,5.2,C.dune);
+  drawGround();
+
+  var i, o, sx;
+  var obs=obstaclesIn(cameraX-60, cameraX+W+60);
+  for(i=0;i<obs.length;i++){
+    o=obs[i]; sx=o.x-cameraX;
+    if(o.k==='crater') drawCrater(sx,o.w);
+    else if(o.k==='bump') drawBump(sx,o.w);
+  }
+  for(i=0;i<dynCraters.length;i++){
+    var d=dynCraters[i];
+    if(d.x+d.w>cameraX-10 && d.x<cameraX+W+10) drawCrater(d.x-cameraX,d.w);
+  }
+  for(i=0;i<obs.length;i++){
+    o=obs[i];
+    if(o.k==='rock') drawRock(o.x-cameraX,o.w,o.h);
+  }
+  for(i=0;i<tanks.length;i++) drawTank(tanks[i].x-cameraX);
+
+  if(state!=='dying' && state!=='over') drawBuggy(PX,py,wheelSpin,thrust);
+
+  for(i=0;i<ufos.length;i++) drawUfo(ufos[i].x-cameraX, ufos[i].y);
+  ctx.fillStyle='#ff9c3a';
+  for(i=0;i<bombs.length;i++){
+    var b=bombs[i];
+    ctx.fillRect(Math.round(b.x-cameraX)-1, Math.round(b.y)-2, 3, 5);
+    ctx.fillStyle=(tick%6<3)?'#fff':'#ff9c3a';
+    ctx.fillRect(Math.round(b.x-cameraX)-1, Math.round(b.y)-4, 3, 2);
+    ctx.fillStyle='#ff9c3a';
+  }
+  ctx.fillStyle=C.shot;
+  for(i=0;i<bullets.length;i++) ctx.fillRect(Math.round(bullets[i].x-cameraX),Math.round(bullets[i].y),5,2);
+  ctx.fillStyle=C.shotUp;
+  for(i=0;i<upshots.length;i++) ctx.fillRect(Math.round(upshots[i].x-cameraX),Math.round(upshots[i].y),2,5);
+  ctx.fillStyle=C.ufo;
+  for(i=0;i<ebullets.length;i++) ctx.fillRect(Math.round(ebullets[i].x-cameraX),Math.round(ebullets[i].y),4,2);
+
+  for(i=0;i<parts.length;i++){
+    var p=parts[i];
+    ctx.globalAlpha=Math.min(1,p.t/24);
+    ctx.fillStyle=p.c||((p.t%4<2)?'#fff2b0':'#ff8a3a');
+    ctx.fillRect(Math.round(p.x-cameraX),Math.round(p.y),2,2);
+  }
+  ctx.globalAlpha=1;
+
+  ctx.font='6px '+FONT; ctx.textBaseline='top';
+  for(i=0;i<pops.length;i++){
+    var pp=pops[i];
+    ctx.globalAlpha=Math.min(1,pp.t/22); ctx.fillStyle=C.hud;
+    ctx.fillText(String(pp.n), Math.round(pp.x-cameraX), Math.round(pp.y));
+  }
+  ctx.globalAlpha=1;
+
+  drawHUD();
+
+  if(flash>0){ ctx.fillStyle='rgba(255,220,180,'+(flash/14)+')'; ctx.fillRect(0,24,W,H-24); }
+
+  if(state==='title'){
+    ctx.fillStyle='rgba(6,7,18,.72)'; ctx.fillRect(0,24,W,H-24);
+    ctx.textBaseline='top';
+    ctext('LUNAR BUGGY',56,16,'#fff');
+    ctext('SECTOR 7 SUPPLY RUN',80,6,C.hud);
+    if((tick>>4)%2===0) ctext('PRESS SPACE OR X TO LAUNCH',108,6,C.hudWarn);
+    ctext('ARROWS THROTTLE   SPACE JUMP   X FIRE',128,6,'#8d92c0');
+    ctext('JUMP THE CRATERS   SHOOT THE ROCKS',140,6,'#8d92c0');
+    ctext('HI '+pad(hi,6),156,6,C.hudDim);
+  } else if(state==='over'){
+    ctx.fillStyle='rgba(6,7,18,.78)'; ctx.fillRect(0,24,W,H-24);
+    ctext('GAME OVER',72,14,C.ufo);
+    ctext('SCORE '+pad(score,6),100,8,'#fff');
+    ctext('BEST '+pad(hi,6),116,6,C.hud);
+    if((tick>>4)%2===0) ctext('PRESS SPACE OR X TO RETRY',140,6,C.hudWarn);
+  } else if(state==='clear'){
+    ctext('COURSE '+(course+1)+' CLEAR',74,12,C.hud);
+    ctext('BONUS '+pad(1000*(course+1),6),96,7,'#fff');
+  } else if(paused){
+    ctx.fillStyle='rgba(6,7,18,.7)'; ctx.fillRect(0,24,W,H-24);
+    ctext('PAUSED',92,14,C.hud);
+    ctext('PRESS P TO RESUME',114,6,'#8d92c0');
+  }
+  if(muted){ ctx.font='6px '+FONT; ctx.fillStyle=C.hudDim; ctx.fillText('MUTE',6,H-10); }
+}
+
+/* ---------- loop ---------- */
+var last=performance.now(), acc=0, STEP=1000/60;
+function frame(now){
+  requestAnimationFrame(frame);
+  var dt=now-last; last=now;
+  if(dt>250) dt=250;
+  acc+=dt;
+  var guard=0;
+  while(acc>=STEP && guard<5){ if(!paused) update(); acc-=STEP; guard++; }
+  if(acc>STEP*5) acc=0;
+  render();
+}
+requestAnimationFrame(frame);
+if(document.fonts && document.fonts.ready) document.fonts.ready.then(function(){ render(); });
+})();
+</script>

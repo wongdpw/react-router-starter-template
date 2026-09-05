@@ -1,0 +1,1209 @@
+<title>Defender</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --void:#04060C;
+    --void-2:#080D18;
+    --bezel:#111A2A;
+    --rule:#1D2A40;
+    --slate:#7C8CA6;
+    --slate-dim:#4A5772;
+    --phos:#3DF08C;
+    --ion:#37D2FF;
+    --flare:#FF3D8A;
+    --ember:#FFB02E;
+    --bone:#E8F1FF;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 700px at 50% -10%, #0C1424 0%, rgba(12,20,36,0) 62%),
+      var(--void);
+    color:var(--bone);
+    font-family:"IBM Plex Mono","SFMono-Regular",Consolas,monospace;
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+    padding:clamp(12px,3vw,40px);
+  }
+  .cabinet{
+    width:100%;
+    max-width:1060px;
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+  }
+  .marquee{
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    gap:16px;
+    flex-wrap:wrap;
+    border-bottom:1px solid var(--rule);
+    padding-bottom:12px;
+  }
+  .wordmark{
+    font-family:"Silkscreen","Courier New",monospace;
+    font-weight:700;
+    font-size:clamp(22px,4.4vw,38px);
+    letter-spacing:.20em;
+    margin:0;
+    color:var(--bone);
+    text-shadow:0 0 18px rgba(55,210,255,.45), 0 0 42px rgba(61,240,140,.18);
+    text-wrap:balance;
+  }
+  .wordmark span{color:var(--phos)}
+  .marquee p{
+    margin:0 0 3px;
+    font-size:12px;
+    letter-spacing:.16em;
+    text-transform:uppercase;
+    color:var(--slate-dim);
+    max-width:34ch;
+    line-height:1.6;
+  }
+  .bezel{
+    position:relative;
+    border:1px solid var(--rule);
+    background:linear-gradient(180deg,#0A101C,#05080F);
+    padding:10px;
+    border-radius:3px;
+    box-shadow:0 0 0 1px rgba(0,0,0,.6) inset, 0 24px 60px -30px rgba(55,210,255,.35);
+  }
+  canvas{
+    display:block;
+    width:100%;
+    height:auto;
+    aspect-ratio:960/660;
+    background:var(--void);
+    border-radius:2px;
+    touch-action:none;
+  }
+  .scanlines{
+    position:absolute; inset:10px;
+    pointer-events:none;
+    border-radius:2px;
+    background:repeating-linear-gradient(180deg, rgba(0,0,0,.22) 0 1px, rgba(0,0,0,0) 1px 3px);
+    mix-blend-mode:multiply;
+    opacity:.55;
+  }
+  .rail{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(168px,1fr));
+    gap:10px 18px;
+  }
+  .key{
+    display:flex;
+    align-items:center;
+    gap:9px;
+    font-size:11.5px;
+    letter-spacing:.09em;
+    text-transform:uppercase;
+    color:var(--slate);
+  }
+  .key b{
+    font-family:"Silkscreen","Courier New",monospace;
+    font-weight:400;
+    font-size:10px;
+    letter-spacing:.06em;
+    color:var(--bone);
+    border:1px solid var(--rule);
+    background:#0B1220;
+    border-radius:2px;
+    padding:5px 7px;
+    min-width:38px;
+    text-align:center;
+    white-space:nowrap;
+  }
+  .pads{
+    display:none;
+    grid-template-columns:repeat(4,1fr);
+    gap:8px;
+  }
+  .pads button{
+    font-family:"Silkscreen","Courier New",monospace;
+    font-size:11px;
+    letter-spacing:.06em;
+    color:var(--bone);
+    background:#0B1220;
+    border:1px solid var(--rule);
+    border-radius:3px;
+    padding:16px 4px;
+    touch-action:none;
+    -webkit-user-select:none;
+    user-select:none;
+  }
+  .pads button:active,.pads button.on{background:#152238;border-color:var(--ion);color:var(--ion)}
+  .pads button:focus-visible,.key b:focus-visible{outline:2px solid var(--ion);outline-offset:2px}
+  .pads .wide{grid-column:span 2}
+  @media (pointer:coarse){ .pads{display:grid} .rail{display:none} }
+  .colophon{
+    font-size:11px;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+    color:var(--slate-dim);
+    border-top:1px solid var(--rule);
+    padding-top:10px;
+    display:flex;
+    justify-content:space-between;
+    gap:12px;
+    flex-wrap:wrap;
+  }
+  @media (prefers-reduced-motion:reduce){ .scanlines{opacity:.3} }
+</style>
+
+<main class="cabinet">
+  <header class="marquee">
+    <h1 class="wordmark">DE<span>F</span>ENDER</h1>
+    <p>Hold the line above the mountains. Ten colonists. One planet.</p>
+  </header>
+
+  <div class="bezel">
+    <canvas id="screen" width="960" height="660" aria-label="Defender game screen"></canvas>
+    <div class="scanlines"></div>
+  </div>
+
+  <div class="pads" id="pads">
+    <button data-k="up">UP</button>
+    <button data-k="down">DOWN</button>
+    <button data-k="rev">REVERSE</button>
+    <button data-k="thrust">THRUST</button>
+    <button data-k="fire" class="wide">FIRE</button>
+    <button data-k="bomb">SMART BOMB</button>
+    <button data-k="hyper">HYPERSPACE</button>
+  </div>
+
+  <div class="rail">
+    <div class="key"><b>&#8592; &#8594;</b> Turn &amp; thrust</div>
+    <div class="key"><b>&#8593; &#8595;</b> Climb / dive</div>
+    <div class="key"><b>SPACE</b> Fire laser</div>
+    <div class="key"><b>B</b> Smart bomb</div>
+    <div class="key"><b>H</b> Hyperspace</div>
+    <div class="key"><b>P</b> Pause</div>
+    <div class="key"><b>M</b> Mute</div>
+    <div class="key"><b>ENTER</b> Start / continue</div>
+  </div>
+
+  <div class="colophon">
+    <span>Landers take the colonists up. Let all ten go and the planet dies.</span>
+    <span id="best">Best 0</span>
+  </div>
+</main>
+
+<script>
+(function(){
+  "use strict";
+
+  var cv = document.getElementById('screen');
+  var ctx = cv.getContext('2d');
+  var W = 960, H = 660, HUD = 104, PT = HUD, PH = H - HUD;
+  var WORLD = 5760, TSEG = 48, TN = WORLD / TSEG;
+
+  var C = {
+    phos:'#3DF08C', ion:'#37D2FF', flare:'#FF3D8A', ember:'#FFB02E',
+    bone:'#E8F1FF', slate:'#7C8CA6', dim:'#3A465E', gold:'#FFD34E',
+    violet:'#A97BFF', rust:'#FF6B3D'
+  };
+
+  function wrapX(x){ x %= WORLD; return x < 0 ? x + WORLD : x; }
+  function dx(a, b){ var d = (a - b) % WORLD; if (d < 0) d += WORLD; return d > WORLD/2 ? d - WORLD : d; }
+  function rnd(a, b){ return a + Math.random() * (b - a); }
+  function ri(a, b){ return Math.floor(rnd(a, b + 1)); }
+  function clamp(v, a, b){ return v < a ? a : v > b ? b : v; }
+
+  var terr = new Float32Array(TN);
+  function makeTerrain(){
+    var y = PH - 78;
+    for (var i = 0; i < TN; i++){
+      y += rnd(-26, 26);
+      if (y > PH - 26) y = PH - 26;
+      if (y < PH - 190) y = PH - 190;
+      terr[i] = y;
+    }
+    for (var k = 0; k < 14; k++){
+      var t = k / 14, a = terr[k], b = terr[(TN - 14 + k) % TN], mid = (a + b) / 2;
+      terr[k] = a * t + mid * (1 - t);
+      terr[(TN - 14 + k) % TN] = b * (1 - t) + mid * t;
+    }
+  }
+  function groundY(x){
+    if (!planet) return PH + 60;
+    var f = wrapX(x) / TSEG, i = Math.floor(f), t = f - i;
+    var a = terr[i % TN], b = terr[(i + 1) % TN];
+    return a + (b - a) * t;
+  }
+
+  var stars = [];
+  for (var s = 0; s < 260; s++){
+    stars.push({ x: Math.random() * WORLD, y: rnd(6, PH - 130), d: rnd(.25, .75), r: Math.random() < .12 ? 1.6 : 1 });
+  }
+
+  var AC = null, muted = false, master = null;
+  function audio(){
+    if (AC) return AC;
+    var Ctor = window.AudioContext || window.webkitAudioContext;
+    if (!Ctor) return null;
+    AC = new Ctor();
+    master = AC.createGain();
+    master.gain.value = .22;
+    master.connect(AC.destination);
+    return AC;
+  }
+  function blip(f0, f1, dur, vol, wave){
+    if (muted) return;
+    var ac = audio(); if (!ac) return;
+    var o = ac.createOscillator(), g = ac.createGain(), t = ac.currentTime;
+    o.type = wave || 'square';
+    o.frequency.setValueAtTime(f0, t);
+    o.frequency.exponentialRampToValueAtTime(Math.max(30, f1), t + dur);
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(.0008, t + dur);
+    o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + .02);
+  }
+  function noise(dur, vol, f){
+    if (muted) return;
+    var ac = audio(); if (!ac) return;
+    var n = Math.floor(ac.sampleRate * dur), buf = ac.createBuffer(1, n, ac.sampleRate), d = buf.getChannelData(0);
+    for (var i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+    var src = ac.createBufferSource(); src.buffer = buf;
+    var lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = f || 900;
+    var g = ac.createGain(); g.gain.value = vol;
+    src.connect(lp); lp.connect(g); g.connect(master); src.start();
+  }
+
+  var mode = 'title';
+  var score = 0, best = 0, lives = 3, bombs = 3, wave = 1, nextLife = 10000;
+  var planet = true, cam = 0, shake = 0, flash = 0, waveTimer = 0, breakTimer = 0, dieTimer = 0;
+  var foes = [], pb = [], eb = [], mines = [], humans = [], parts = [], marks = [];
+  var p = null, frame = 0, bonusLine = '';
+
+  try { best = parseInt(localStorage.getItem('defender.best') || '0', 10) || 0; } catch(e){}
+  var bestEl = document.getElementById('best');
+  bestEl.textContent = 'Best ' + best;
+
+  function newPlayer(){
+    return { x: WORLD * .5, y: PH * .45, vx: 0, vy: 0, dir: 1, cool: 0, inv: 150, carry: null, thrusting: false };
+  }
+
+  function addHuman(x){
+    humans.push({ x: wrapX(x), y: groundY(x) - 9, st: 'walk', vx: Math.random() < .5 ? -.22 : .22, vy: 0, drop: 0 });
+  }
+
+  function resetGame(){
+    score = 0; lives = 3; bombs = 3; nextLife = 10000; planet = true;
+    makeTerrain();
+    foes = []; pb = []; eb = []; mines = []; parts = []; marks = []; humans = [];
+    p = newPlayer();
+    cam = wrapX(p.x - W * .5);
+    for (var i = 0; i < 10; i++) addHuman(WORLD * (i + .5) / 10 + rnd(-140, 140));
+    startWave(1);
+  }
+
+  function startWave(n){
+    wave = n; waveTimer = 0; mode = 'play';
+    if (planet){ for (var h = 0; h < humans.length; h++){ humans[h].st = 'walk'; humans[h].y = groundY(humans[h].x) - 9; } }
+    var landers = Math.min(6 + n * 2, 22);
+    for (var i = 0; i < landers; i++) spawn('lander', p.x + rnd(520, WORLD - 520), rnd(50, PH * .45));
+    var pods = Math.min(Math.floor(n / 2), 5);
+    for (var j = 0; j < pods; j++) spawn('pod', p.x + rnd(520, WORLD - 520), rnd(60, PH * .55));
+    var bombers = n >= 3 ? Math.min(n - 2, 6) : 0;
+    for (var k = 0; k < bombers; k++) spawn('bomber', p.x + rnd(520, WORLD - 520), rnd(80, PH * .6));
+  }
+
+  function spawn(kind, x, y){
+    if (kind === 'lander' && !planet) kind = 'mutant';
+    var f = { kind: kind, x: wrapX(x), y: y, vx: 0, vy: 0, t: rnd(0, 100), cool: ri(70, 260), cargo: null, target: null, r: 12 };
+    if (kind === 'mutant') f.vx = rnd(-2, 2);
+    if (kind === 'bomber'){ f.r = 14; f.vx = Math.random() < .5 ? -1.3 : 1.3; }
+    if (kind === 'pod'){ f.r = 17; f.vx = rnd(-.9, .9); }
+    if (kind === 'swarmer'){ f.r = 8; f.vx = rnd(-3, 3); f.vy = rnd(-3, 3); }
+    if (kind === 'baiter') f.r = 13;
+    foes.push(f);
+    return f;
+  }
+
+  function boom(sx, y, n, col, spd, big){
+    for (var i = 0; i < n; i++){
+      var a = Math.random() * Math.PI * 2, v = rnd(.35, 1) * (spd || 3.4);
+      parts.push({ x: wrapX(cam + sx), y: y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: ri(20, 46), max: 46, c: col, s: big ? 2.4 : 1.6 });
+    }
+    if (big) shake = Math.max(shake, 14);
+  }
+  function mark(sx, y, txt, col){ marks.push({ x: wrapX(cam + sx), y: y, t: txt, c: col, life: 54 }); }
+  function award(v, sx, y, col){
+    score += v;
+    if (sx != null) mark(sx, y, '+' + v, col || C.bone);
+    if (score >= nextLife){ lives++; nextLife += 10000; blip(500, 1500, .3, .14, 'triangle'); }
+  }
+
+  var keys = {}, pressed = { up:false, down:false, thrust:false, fire:false };
+  function keyName(e){
+    switch(e.code){
+      case 'ArrowUp': case 'KeyW': return 'up';
+      case 'ArrowDown': case 'KeyS': return 'down';
+      case 'ArrowLeft': case 'KeyA': return 'left';
+      case 'ArrowRight': case 'KeyD': return 'right';
+      case 'Space': return 'fire';
+      case 'KeyB': case 'ShiftLeft': case 'ShiftRight': return 'bomb';
+      case 'KeyH': return 'hyper';
+      case 'KeyP': return 'pause';
+      case 'KeyM': return 'mute';
+      case 'Enter': case 'NumpadEnter': return 'enter';
+    }
+    return null;
+  }
+  window.addEventListener('keydown', function(e){
+    var k = keyName(e); if (!k) return;
+    e.preventDefault();
+    if (!keys[k]) tap(k);
+    keys[k] = true;
+  }, { passive:false });
+  window.addEventListener('keyup', function(e){
+    var k = keyName(e); if (!k) return;
+    e.preventDefault(); keys[k] = false;
+  }, { passive:false });
+  window.addEventListener('blur', function(){
+    keys = {}; pressed.up = pressed.down = pressed.thrust = pressed.fire = false;
+    if (mode === 'play') mode = 'paused';
+  });
+
+  function wake(){ var ac = audio(); if (ac && ac.state === 'suspended') ac.resume(); }
+
+  function tap(k){
+    wake();
+    if (k === 'mute'){ muted = !muted; return; }
+    if (k === 'enter'){
+      if (mode === 'title' || mode === 'over') resetGame();
+      else if (mode === 'paused') mode = 'play';
+      else if (mode === 'break') breakTimer = 190;
+      return;
+    }
+    if (k === 'pause'){
+      if (mode === 'play') mode = 'paused';
+      else if (mode === 'paused') mode = 'play';
+      return;
+    }
+    if (mode !== 'play') return;
+    if (k === 'bomb') smartBomb();
+    if (k === 'hyper') hyperspace();
+  }
+
+  var pads = document.getElementById('pads');
+  function padDown(el){
+    var k = el.getAttribute('data-k');
+    el.classList.add('on');
+    wake();
+    if (mode !== 'play'){ tap('enter'); return; }
+    if (k === 'bomb'){ smartBomb(); return; }
+    if (k === 'hyper'){ hyperspace(); return; }
+    if (k === 'rev'){ p.dir = -p.dir; return; }
+    pressed[k] = true;
+  }
+  function padUp(el){
+    var k = el.getAttribute('data-k');
+    el.classList.remove('on');
+    if (k in pressed) pressed[k] = false;
+  }
+  if (pads){
+    pads.addEventListener('pointerdown', function(e){
+      var b = e.target.closest('button'); if (!b) return;
+      e.preventDefault();
+      try { b.setPointerCapture(e.pointerId); } catch(err){}
+      padDown(b);
+    });
+    pads.addEventListener('pointerup', function(e){ var b = e.target.closest('button'); if (b) padUp(b); });
+    pads.addEventListener('pointercancel', function(e){ var b = e.target.closest('button'); if (b) padUp(b); });
+    pads.addEventListener('contextmenu', function(e){ e.preventDefault(); });
+  }
+  cv.addEventListener('pointerdown', function(){ wake(); if (mode !== 'play') tap('enter'); });
+
+  function fire(){
+    if (p.cool > 0 || pb.length > 7) return;
+    p.cool = 6;
+    pb.push({ x: wrapX(p.x + p.dir * 20), y: p.y, vx: p.dir * 23 + p.vx * .3, life: 42 });
+    blip(1600, 240, .09, .09, 'square');
+  }
+
+  var VAL = { lander:150, mutant:150, baiter:200, bomber:250, pod:1000, swarmer:150 };
+
+  function killFoe(i){
+    var f = foes[i];
+    foes.splice(i, 1);
+    var sx = dx(f.x, cam);
+    award(VAL[f.kind] || 100, sx, f.y, f.kind === 'pod' ? C.violet : C.ember);
+    boom(sx, f.y, f.kind === 'pod' ? 26 : 16,
+         f.kind === 'lander' ? C.flare : f.kind === 'pod' ? C.violet : C.ember, 3.4, f.kind === 'pod');
+    noise(.26, .32, 760);
+    if (f.cargo){ f.cargo.st = 'fall'; f.cargo.vy = 0; f.cargo.drop = f.cargo.y; f.cargo = null; }
+    if (f.kind === 'pod'){
+      var n = ri(3, 5);
+      for (var k = 0; k < n; k++) spawn('swarmer', f.x + rnd(-22, 22), f.y + rnd(-22, 22));
+    }
+  }
+
+  function smartBomb(){
+    if (bombs <= 0){ blip(220, 120, .12, .07, 'sine'); return; }
+    bombs--; flash = Math.max(flash, 24); shake = Math.max(shake, 10);
+    noise(.55, .5, 520);
+    for (var i = foes.length - 1; i >= 0; i--){
+      var sx = dx(foes[i].x, cam);
+      if (sx > -40 && sx < W + 40) killFoe(i);
+    }
+    for (var m = mines.length - 1; m >= 0; m--) if (Math.abs(dx(mines[m].x, cam) - W / 2) < W) mines.splice(m, 1);
+    for (var e = eb.length - 1; e >= 0; e--) if (Math.abs(dx(eb[e].x, cam) - W / 2) < W) eb.splice(e, 1);
+  }
+
+  function die(){
+    if (mode !== 'play') return;
+    mode = 'dying'; dieTimer = 110;
+    boom(dx(p.x, cam), p.y, 46, C.ion, 5.4, true);
+    noise(.9, .55, 380);
+    blip(440, 40, .8, .16, 'sawtooth');
+    if (p.carry){ p.carry.st = 'fall'; p.carry.drop = p.carry.y; p.carry = null; }
+    lives--;
+  }
+
+  function hyperspace(){
+    p.x = wrapX(p.x + rnd(-WORLD * .45, WORLD * .45));
+    p.y = rnd(60, PH - 150); p.vx *= .2; p.vy = 0;
+    boom(dx(p.x, cam), p.y, 14, C.ion, 3);
+    blip(200, 1900, .24, .11, 'sawtooth');
+    if (Math.random() < .12) die(); else p.inv = Math.max(p.inv, 50);
+  }
+
+  function destroyPlanet(){
+    planet = false; flash = 36; shake = 26;
+    noise(1.5, .7, 320);
+    for (var i = 0; i < 110; i++){
+      parts.push({ x: wrapX(cam + rnd(-200, W + 200)), y: rnd(PH - 210, PH), vx: rnd(-4.5, 4.5), vy: rnd(-7, 1),
+                   life: ri(46, 110), max: 110, c: i % 3 ? C.phos : C.ember, s: 2.2 });
+    }
+    for (var j = 0; j < foes.length; j++){
+      if (foes[j].kind === 'lander'){ foes[j].kind = 'mutant'; foes[j].cargo = null; }
+    }
+  }
+
+  function onScreen(x, pad){ var d = dx(x, cam); return d > -(pad || 40) && d < W + (pad || 40); }
+
+  function shoot(f, spd){
+    var ax = dx(p.x, f.x), ay = p.y - f.y, len = Math.sqrt(ax * ax + ay * ay) || 1;
+    eb.push({ x: f.x, y: f.y, vx: ax / len * spd, vy: ay / len * spd, life: 300 });
+    blip(760, 300, .09, .045, 'sawtooth');
+  }
+
+  function updatePlayer(){
+    var thrust = pressed.thrust;
+    if (keys.left){ p.dir = -1; thrust = true; }
+    if (keys.right){ p.dir = 1; thrust = true; }
+    p.thrusting = thrust;
+
+    if (thrust) p.vx = clamp(p.vx + p.dir * .36, -9.6, 9.6);
+    else p.vx *= .986;
+
+    var up = keys.up || pressed.up, down = keys.down || pressed.down;
+    if (up) p.vy = clamp(p.vy - .62, -5.2, 5.2);
+    else if (down) p.vy = clamp(p.vy + .62, -5.2, 5.2);
+    else p.vy *= .8;
+
+    p.x = wrapX(p.x + p.vx);
+    p.y += p.vy;
+
+    var gy = Math.min(groundY(p.x) - 13, PH - 14);
+    if (p.y > gy){ p.y = gy; if (p.vy > 0) p.vy = 0; }
+    if (p.y < 16){ p.y = 16; if (p.vy < 0) p.vy = 0; }
+
+    if (p.cool > 0) p.cool--;
+    if (p.inv > 0) p.inv--;
+    if (keys.fire || pressed.fire) fire();
+    if (p.thrusting && frame % 5 === 0) noise(.06, .05, 260);
+
+    if (p.carry){
+      p.carry.x = p.x; p.carry.y = p.y + 19; p.carry.st = 'held';
+      if (planet && p.carry.y >= groundY(p.x) - 10){
+        p.carry.st = 'walk'; p.carry.y = groundY(p.x) - 9;
+        award(500, dx(p.x, cam), p.y - 26, C.gold);
+        blip(600, 1300, .22, .13, 'triangle');
+        p.carry = null;
+      }
+    }
+
+    var lead = p.dir > 0 ? W * .34 : W * .66;
+    cam = wrapX(cam + dx(wrapX(p.x - lead), cam) * .09);
+  }
+
+  function pickHuman(f){
+    var bestH = null, bd = 1e9;
+    for (var i = 0; i < humans.length; i++){
+      var h = humans[i];
+      if (h.st !== 'walk') continue;
+      var d = Math.abs(dx(h.x, f.x));
+      if (d < bd){ bd = d; bestH = h; }
+    }
+    return bestH;
+  }
+
+  function updateFoes(){
+    for (var i = foes.length - 1; i >= 0; i--){
+      var f = foes[i];
+      f.t++;
+      var toP = dx(p.x, f.x), sgn = toP > 0 ? 1 : -1;
+
+      if (f.kind === 'lander'){
+        if (f.cargo){
+          f.vy = -1.15; f.vx *= .88;
+          f.cargo.x = f.x; f.cargo.y = f.y + 17;
+          if (f.y < 30){
+            removeHuman(f.cargo); f.cargo = null;
+            f.kind = 'mutant'; f.vx = rnd(-2, 2); f.vy = 0;
+            blip(180, 900, .3, .12, 'sawtooth');
+          }
+        } else {
+          if (!f.target || f.target.st !== 'walk') f.target = pickHuman(f);
+          if (f.target){
+            var d = dx(f.target.x, f.x);
+            f.vx = clamp(f.vx + (d > 0 ? .05 : -.05), -1.7, 1.7);
+            f.vy = Math.abs(d) < 240 ? .95 : .3;
+            var tg = f.target.y - 15;
+            if (f.y > tg){ f.y = tg; f.vy = 0; }
+            if (Math.abs(d) < 15 && f.y >= tg - 2){
+              f.cargo = f.target; f.target.st = 'grabbed'; f.target = null;
+              blip(300, 90, .25, .1, 'square');
+            }
+          } else {
+            f.vx = clamp(f.vx + sgn * .03, -2.2, 2.2);
+            f.vy = Math.sin(f.t * .02) * 1.1;
+          }
+        }
+      } else if (f.kind === 'mutant'){
+        f.vx = clamp(f.vx + sgn * .16 + rnd(-.14, .14), -4.8, 4.8);
+        f.vy = clamp(f.vy + (p.y > f.y ? .16 : -.16) + rnd(-.2, .2), -4.4, 4.4);
+      } else if (f.kind === 'baiter'){
+        f.vx = clamp(f.vx + sgn * .26, -7.2, 7.2);
+        f.vy = clamp(f.vy + (p.y > f.y ? .2 : -.2), -4.2, 4.2);
+      } else if (f.kind === 'bomber'){
+        f.vy = Math.sin(f.t * .028) * 1.5;
+        if (f.t % 110 === 0 && onScreen(f.x, 260)){
+          mines.push({ x: f.x, y: f.y, life: 620 });
+          blip(140, 90, .12, .05, 'square');
+        }
+      } else if (f.kind === 'pod'){
+        f.vy = Math.sin(f.t * .015) * .8;
+      } else if (f.kind === 'swarmer'){
+        f.vx = clamp(f.vx + sgn * .2 + rnd(-.2, .2), -5.4, 5.4);
+        f.vy = clamp(f.vy + (p.y > f.y ? .2 : -.2) + Math.sin(f.t * .18) * .3, -4.8, 4.8);
+      }
+
+      f.x = wrapX(f.x + f.vx);
+      f.y += f.vy;
+      var floor = planet ? groundY(f.x) - 14 : PH - 12;
+      if (f.kind !== 'lander' && f.y > floor){ f.y = floor; f.vy = -Math.abs(f.vy) * .6; }
+      if (f.y < 12){ f.y = 12; if (f.vy < 0) f.vy = -f.vy * .5; }
+
+      if (f.kind !== 'pod' && f.kind !== 'swarmer' && mode === 'play'){
+        if (--f.cool <= 0){
+          f.cool = f.kind === 'mutant' ? ri(46, 110) : ri(80, 210);
+          if (onScreen(f.x, -30) && Math.random() < .8) shoot(f, f.kind === 'mutant' ? 4.4 : 3.6);
+        }
+      }
+    }
+
+    if (mode === 'play' && waveTimer > 1700 && waveTimer % 420 === 0){
+      var bx = wrapX(p.x + (Math.random() < .5 ? -1 : 1) * W * .6);
+      spawn('baiter', bx, rnd(40, PH * .5));
+      blip(900, 1400, .18, .08, 'square');
+    }
+  }
+
+  function removeHuman(h){
+    var i = humans.indexOf(h);
+    if (i >= 0) humans.splice(i, 1);
+    if (humans.length === 0 && planet) destroyPlanet();
+  }
+
+  function updateHumans(){
+    for (var i = humans.length - 1; i >= 0; i--){
+      var h = humans[i];
+      if (h.st === 'walk'){
+        if (!planet){ removeHuman(h); continue; }
+        h.x = wrapX(h.x + h.vx);
+        if (Math.random() < .006) h.vx = -h.vx;
+        h.y = groundY(h.x) - 9;
+      } else if (h.st === 'fall'){
+        h.vy += .11; h.y += h.vy;
+        var gy = planet ? groundY(h.x) - 9 : PH + 200;
+        if (h.y >= gy){
+          if (h.y - h.drop > 150){
+            boom(dx(h.x, cam), gy, 12, C.gold, 2.4);
+            noise(.3, .3, 500);
+            removeHuman(h);
+          } else { h.st = 'walk'; h.y = gy; h.vy = 0; }
+        } else if (!planet && h.y > PH + 40){ removeHuman(h); }
+      }
+      if (h.st === 'fall' && !p.carry && mode === 'play' &&
+          Math.abs(dx(h.x, p.x)) < 20 && Math.abs(h.y - p.y) < 24){
+        p.carry = h; h.st = 'held'; h.vy = 0;
+        award(500, dx(p.x, cam), p.y - 24, C.gold);
+        blip(900, 1600, .16, .11, 'triangle');
+      }
+    }
+  }
+
+  function updateShots(){
+    var i, j;
+    for (i = pb.length - 1; i >= 0; i--){
+      var b = pb[i];
+      b.x = wrapX(b.x + b.vx);
+      if (--b.life <= 0){ pb.splice(i, 1); continue; }
+      var hit = false;
+      for (j = foes.length - 1; j >= 0; j--){
+        var f = foes[j];
+        if (Math.abs(dx(f.x, b.x)) < f.r + 12 && Math.abs(f.y - b.y) < f.r + 4){ killFoe(j); hit = true; break; }
+      }
+      if (!hit){
+        for (j = mines.length - 1; j >= 0; j--){
+          if (Math.abs(dx(mines[j].x, b.x)) < 12 && Math.abs(mines[j].y - b.y) < 10){
+            boom(dx(mines[j].x, cam), mines[j].y, 8, C.rust, 2.6);
+            mines.splice(j, 1); award(25, null); hit = true; break;
+          }
+        }
+      }
+      if (hit) pb.splice(i, 1);
+    }
+
+    for (i = eb.length - 1; i >= 0; i--){
+      var e = eb[i];
+      e.x = wrapX(e.x + e.vx); e.y += e.vy;
+      if (--e.life <= 0 || e.y < 4 || e.y > PH + 20){ eb.splice(i, 1); continue; }
+      if (mode === 'play' && p.inv <= 0 && Math.abs(dx(e.x, p.x)) < 13 && Math.abs(e.y - p.y) < 10){
+        eb.splice(i, 1); die();
+      }
+    }
+
+    for (i = mines.length - 1; i >= 0; i--){
+      var m = mines[i];
+      if (--m.life <= 0){ mines.splice(i, 1); continue; }
+      if (mode === 'play' && p.inv <= 0 && Math.abs(dx(m.x, p.x)) < 15 && Math.abs(m.y - p.y) < 13){
+        mines.splice(i, 1); die();
+      }
+    }
+
+    if (mode === 'play' && p.inv <= 0){
+      for (i = foes.length - 1; i >= 0; i--){
+        var g = foes[i];
+        if (Math.abs(dx(g.x, p.x)) < g.r + 11 && Math.abs(g.y - p.y) < g.r + 8){ killFoe(i); die(); break; }
+      }
+    }
+  }
+
+  function updateFx(){
+    var i;
+    for (i = parts.length - 1; i >= 0; i--){
+      var q = parts[i];
+      q.x += q.vx; q.y += q.vy; q.vy += .045; q.vx *= .985;
+      if (--q.life <= 0) parts.splice(i, 1);
+    }
+    for (i = marks.length - 1; i >= 0; i--){
+      marks[i].y -= .55;
+      if (--marks[i].life <= 0) marks.splice(i, 1);
+    }
+    if (shake > 0) shake *= .88;
+    if (flash > 0) flash--;
+  }
+
+  function waveCleared(){
+    for (var i = 0; i < foes.length; i++) if (foes[i].kind !== 'baiter') return false;
+    return true;
+  }
+
+  function saveBest(){
+    if (score > best){
+      best = score;
+      try { localStorage.setItem('defender.best', String(best)); } catch(e){}
+      bestEl.textContent = 'Best ' + best;
+    }
+  }
+
+  function step(){
+    frame++;
+    updateFx();
+
+    if (mode === 'play'){
+      waveTimer++;
+      updatePlayer();
+      updateFoes();
+      updateHumans();
+      updateShots();
+      if (waveCleared()){
+        mode = 'break'; breakTimer = 1;
+        var bonus = humans.length * 100 * wave;
+        score += bonus;
+        bonusLine = humans.length + ' colonist' + (humans.length === 1 ? '' : 's') + ' safe   \u00d7 ' + (100 * wave) + '   =   ' + bonus;
+        if (score >= nextLife){ lives++; nextLife += 10000; }
+        blip(520, 1500, .4, .13, 'triangle');
+      }
+    } else if (mode === 'dying'){
+      updateFoes(); updateHumans(); updateShots();
+      if (--dieTimer <= 0){
+        if (lives <= 0){ mode = 'over'; saveBest();
+      try { parent.postMessage({ type:'arcade:gameover', game:'defender', score:score }, '*'); } catch(e){} }
+        else {
+          p = newPlayer();
+          p.x = wrapX(cam + W * .5);
+          p.y = PH * .4;
+          eb.length = 0;
+          mode = 'play';
+        }
+      }
+    } else if (mode === 'break'){
+      breakTimer++;
+      updateFoes(); updateHumans(); updateShots();
+      if (breakTimer > 190){
+        bombs = Math.min(bombs + 1, 6);
+        if (wave % 3 === 0) lives++;
+        for (var b = eb.length - 1; b >= 0; b--) eb.splice(b, 1);
+        mines.length = 0;
+        foes.length = 0;
+        startWave(wave + 1);
+      }
+    }
+  }
+
+  var dpr = 1;
+  function fit(){
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    cv.width = Math.round(W * dpr);
+    cv.height = Math.round(H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  fit();
+  window.addEventListener('resize', fit);
+
+  function poly(pts, close){
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0], pts[0][1]);
+    for (var i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+    if (close !== false) ctx.closePath();
+  }
+
+  function drawSky(){
+    var g = ctx.createLinearGradient(0, PT, 0, H);
+    g.addColorStop(0, '#04060C');
+    g.addColorStop(.72, '#070C18');
+    g.addColorStop(1, planet ? '#0A1120' : '#05070E');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, PT, W, PH);
+
+    for (var i = 0; i < stars.length; i++){
+      var st = stars[i], d = dx(st.x, cam * st.d);
+      if (d < -4 || d > W + 4) continue;
+      ctx.fillStyle = i % 7 === 0 ? 'rgba(55,210,255,.7)' : 'rgba(232,241,255,' + (.18 + st.d * .5) + ')';
+      ctx.fillRect(d, PT + st.y, st.r, st.r);
+    }
+  }
+
+  function drawTerrain(){
+    if (!planet) return;
+    var i0 = Math.floor(cam / TSEG) - 1, n = Math.ceil(W / TSEG) + 3;
+    var pts = [];
+    for (var i = 0; i <= n; i++){
+      var idx = ((i0 + i) % TN + TN) % TN;
+      pts.push([(i0 + i) * TSEG - cam, terr[idx]]);
+    }
+    ctx.save();
+    ctx.translate(0, PT);
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0], pts[0][1]);
+    for (var k = 1; k < pts.length; k++) ctx.lineTo(pts[k][0], pts[k][1]);
+    ctx.lineTo(pts[pts.length - 1][0], PH + 4);
+    ctx.lineTo(pts[0][0], PH + 4);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(10,32,24,.92)';
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0], pts[0][1]);
+    for (var j = 1; j < pts.length; j++) ctx.lineTo(pts[j][0], pts[j][1]);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = C.phos;
+    ctx.shadowColor = C.phos;
+    ctx.shadowBlur = 10;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.restore();
+  }
+
+  function drawHuman(h){
+    var sx = dx(h.x, cam);
+    if (sx < -20 || sx > W + 20) return;
+    ctx.save();
+    ctx.translate(sx, PT + h.y);
+    ctx.fillStyle = C.gold;
+    ctx.fillRect(-1.5, -8, 3, 3);
+    ctx.fillRect(-2.5, -4, 5, 5);
+    var sw = h.st === 'walk' ? Math.sin(frame * .14 + h.x) : 1;
+    ctx.fillRect(-3, 1, 2, 5 * (sw > 0 ? 1 : .7));
+    ctx.fillRect(1, 1, 2, 5 * (sw > 0 ? .7 : 1));
+    if (h.st === 'fall' || h.st === 'held'){
+      ctx.fillRect(-6, -4, 3, 2); ctx.fillRect(3, -4, 3, 2);
+    }
+    ctx.restore();
+  }
+
+  function drawFoe(f){
+    var sx = dx(f.x, cam);
+    if (sx < -40 || sx > W + 40) return;
+    ctx.save();
+    ctx.translate(sx, PT + f.y);
+    ctx.lineWidth = 2;
+    ctx.lineJoin = 'round';
+
+    if (f.kind === 'lander' || f.kind === 'mutant'){
+      var mut = f.kind === 'mutant';
+      ctx.strokeStyle = mut ? C.phos : C.flare;
+      ctx.fillStyle = mut ? 'rgba(61,240,140,.16)' : 'rgba(255,61,138,.18)';
+      if (mut){
+        poly([[-11,-6],[-4,-9],[4,-9],[11,-6],[6,3],[-6,3]]);
+      } else {
+        poly([[-11,-8],[11,-8],[6,2],[-6,2]]);
+      }
+      ctx.fill(); ctx.stroke();
+      ctx.beginPath();
+      var legs = mut ? [[-8,3,-12,10],[0,3,0,11],[8,3,12,10]] : [[-6,2,-11,11],[0,2,0,12],[6,2,11,11]];
+      for (var i = 0; i < legs.length; i++){ ctx.moveTo(legs[i][0], legs[i][1]); ctx.lineTo(legs[i][2], legs[i][3]); }
+      ctx.strokeStyle = mut ? C.violet : C.ion;
+      ctx.stroke();
+      ctx.fillStyle = mut ? C.flare : C.ion;
+      var blink = (frame + f.t) % 40 < 26 ? 1 : .3;
+      ctx.globalAlpha = blink;
+      ctx.fillRect(-2, -6, 4, 4);
+      ctx.globalAlpha = 1;
+    } else if (f.kind === 'baiter'){
+      ctx.strokeStyle = C.ember;
+      ctx.fillStyle = 'rgba(255,176,46,.18)';
+      poly([[-14,0],[-5,-7],[5,-7],[14,0],[5,6],[-5,6]]);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = C.bone;
+      ctx.fillRect(-1.5, -10, 3, 3);
+    } else if (f.kind === 'bomber'){
+      ctx.strokeStyle = C.violet;
+      ctx.fillStyle = 'rgba(169,123,255,.14)';
+      poly([[0,-13],[13,0],[0,13],[-13,0]]);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = C.violet;
+      for (var gx = -1; gx <= 1; gx++) for (var gy = -1; gy <= 1; gy++)
+        if ((gx + gy) % 2 === 0) ctx.fillRect(gx * 6 - 2.5, gy * 6 - 2.5, 5, 5);
+    } else if (f.kind === 'pod'){
+      var pulse = 1 + Math.sin(f.t * .09) * .1;
+      ctx.scale(pulse, pulse);
+      ctx.strokeStyle = C.violet;
+      ctx.fillStyle = 'rgba(169,123,255,.12)';
+      ctx.beginPath(); ctx.arc(0, 0, 15, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = C.ion;
+      ctx.beginPath();
+      for (var a = 0; a < 4; a++){
+        var an = a * Math.PI / 4 + f.t * .02;
+        ctx.moveTo(Math.cos(an) * 15, Math.sin(an) * 15);
+        ctx.lineTo(-Math.cos(an) * 15, -Math.sin(an) * 15);
+      }
+      ctx.stroke();
+    } else if (f.kind === 'swarmer'){
+      ctx.strokeStyle = C.ion;
+      ctx.fillStyle = 'rgba(55,210,255,.3)';
+      poly([[0,-8],[4,0],[0,8],[-4,0]]);
+      ctx.fill(); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawShip(){
+    if (mode === 'dying' || mode === 'title' || mode === 'over') return;
+    if (p.inv > 0 && Math.floor(frame / 4) % 2 === 0) return;
+    var sx = dx(p.x, cam);
+    ctx.save();
+    ctx.translate(sx, PT + p.y);
+    ctx.scale(p.dir, 1);
+    if (p.thrusting){
+      var fl = 10 + Math.random() * 14;
+      ctx.beginPath();
+      ctx.moveTo(-16, -5); ctx.lineTo(-16 - fl, 0); ctx.lineTo(-16, 5);
+      ctx.closePath();
+      ctx.fillStyle = Math.random() < .5 ? C.ember : C.ion;
+      ctx.fill();
+    }
+    poly([[21,0],[5,-6],[-9,-6],[-16,-11],[-16,11],[-9,6],[5,6]]);
+    ctx.fillStyle = 'rgba(232,241,255,.9)';
+    ctx.fill();
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = C.ion;
+    ctx.shadowColor = C.ion; ctx.shadowBlur = 12;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = C.ion;
+    ctx.fillRect(2, -2.5, 9, 5);
+    ctx.restore();
+  }
+
+  function drawShots(){
+    var i;
+    for (i = 0; i < pb.length; i++){
+      var b = pb[i], sx = dx(b.x, cam);
+      if (sx < -60 || sx > W + 60) continue;
+      var len = 34 * (b.vx > 0 ? 1 : -1);
+      var g = ctx.createLinearGradient(sx, 0, sx - len, 0);
+      g.addColorStop(0, C.bone);
+      g.addColorStop(.35, C.ion);
+      g.addColorStop(1, 'rgba(55,210,255,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(Math.min(sx, sx - len), PT + b.y - 1.5, Math.abs(len), 3);
+    }
+    ctx.fillStyle = C.ember;
+    for (i = 0; i < eb.length; i++){
+      var e = eb[i], ex = dx(e.x, cam);
+      if (ex < -10 || ex > W + 10) continue;
+      ctx.fillRect(ex - 2.5, PT + e.y - 2.5, 5, 5);
+    }
+    for (i = 0; i < mines.length; i++){
+      var m = mines[i], mx = dx(m.x, cam);
+      if (mx < -14 || mx > W + 14) continue;
+      var a = m.life < 90 ? (Math.floor(frame / 4) % 2 ? .3 : 1) : 1;
+      ctx.globalAlpha = a;
+      ctx.strokeStyle = C.rust; ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(mx - 7, PT + m.y); ctx.lineTo(mx + 7, PT + m.y);
+      ctx.moveTo(mx, PT + m.y - 7); ctx.lineTo(mx, PT + m.y + 7);
+      ctx.moveTo(mx - 5, PT + m.y - 5); ctx.lineTo(mx + 5, PT + m.y + 5);
+      ctx.moveTo(mx + 5, PT + m.y - 5); ctx.lineTo(mx - 5, PT + m.y + 5);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  var PIX = "'Silkscreen', 'Courier New', monospace";
+  var MONO = "'IBM Plex Mono', Consolas, monospace";
+  function txt(s, x, y, size, col, align, font, track){
+    ctx.font = size + 'px ' + (font || PIX);
+    ctx.fillStyle = col;
+    ctx.textAlign = align || 'left';
+    ctx.textBaseline = 'alphabetic';
+    if ('letterSpacing' in ctx) ctx.letterSpacing = (track || 0) + 'px';
+    ctx.fillText(s, x, y);
+    if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
+  }
+  function pad(n, w){ var s = String(n); while (s.length < w) s = '0' + s; return s; }
+
+  function drawSprite(kind, sx, sy){ drawFoe({ kind: kind, x: wrapX(cam + sx), y: sy - PT, t: 12, r: 12 }); }
+
+  var SC_X = 216, SC_W = 528, SC_Y = 20, SC_H = 70;
+  function scanX(x){ return SC_X + wrapX(x) / WORLD * SC_W; }
+  function scanY(y){ return SC_Y + clamp(y / PH, 0, 1) * SC_H; }
+
+  function drawScanner(){
+    ctx.save();
+    ctx.fillStyle = '#04070E';
+    ctx.fillRect(SC_X, SC_Y, SC_W, SC_H);
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(SC_X, SC_Y, SC_W, SC_H);
+    ctx.clip();
+
+    if (planet){
+      ctx.beginPath();
+      for (var i = 0; i <= TN; i++){
+        var px = SC_X + (i / TN) * SC_W, py = scanY(terr[i % TN]);
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.strokeStyle = 'rgba(61,240,140,.5)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+
+    var i2;
+    ctx.fillStyle = C.gold;
+    for (i2 = 0; i2 < humans.length; i2++) ctx.fillRect(scanX(humans[i2].x) - 1, scanY(humans[i2].y) - 1.5, 2, 3);
+    for (i2 = 0; i2 < foes.length; i2++){
+      var f = foes[i2];
+      ctx.fillStyle = f.kind === 'lander' ? C.flare : f.kind === 'mutant' ? C.phos :
+                      f.kind === 'baiter' ? C.ember : f.kind === 'swarmer' ? C.ion : C.violet;
+      ctx.fillRect(scanX(f.x) - 1.5, scanY(f.y) - 1.5, 3, 3);
+    }
+    ctx.fillStyle = C.ember;
+    for (i2 = 0; i2 < mines.length; i2++) ctx.fillRect(scanX(mines[i2].x) - 1, scanY(mines[i2].y) - 1, 2, 2);
+
+    if (p && mode !== 'title' && mode !== 'over'){
+      ctx.fillStyle = C.bone;
+      ctx.fillRect(scanX(p.x) - 2, scanY(p.y) - 2, 4, 4);
+    }
+
+    var vx0 = scanX(cam), vw = W / WORLD * SC_W;
+    ctx.strokeStyle = 'rgba(232,241,255,.34)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(vx0 + .5, SC_Y + .5, vw, SC_H - 1);
+    if (vx0 + vw > SC_X + SC_W) ctx.strokeRect(vx0 - SC_W + .5, SC_Y + .5, vw, SC_H - 1);
+    ctx.restore();
+
+    ctx.strokeStyle = '#1D2A40';
+    ctx.strokeRect(SC_X + .5, SC_Y + .5, SC_W - 1, SC_H - 1);
+    ctx.restore();
+  }
+
+  function drawHud(){
+    ctx.fillStyle = '#06090F';
+    ctx.fillRect(0, 0, W, HUD);
+    ctx.fillStyle = '#1D2A40';
+    ctx.fillRect(0, HUD - 1, W, 1);
+
+    txt('SCORE', 18, 26, 9, C.slate, 'left', PIX, 3);
+    txt(pad(score, 6), 18, 52, 22, C.bone, 'left', PIX, 2);
+
+    var i;
+    for (i = 0; i < Math.min(lives, 6); i++){
+      ctx.save();
+      ctx.translate(24 + i * 22, 74);
+      ctx.scale(.62, .62);
+      poly([[21,0],[5,-6],[-9,-6],[-16,-11],[-16,11],[-9,6],[5,6]]);
+      ctx.fillStyle = 'rgba(232,241,255,.85)';
+      ctx.fill();
+      ctx.restore();
+    }
+    if (lives > 6) txt('x' + lives, 24 + 6 * 22, 78, 11, C.slate, 'left', PIX, 1);
+
+    txt('WAVE', W - 18, 26, 9, C.slate, 'right', PIX, 3);
+    txt(pad(wave, 2), W - 18, 52, 22, C.phos, 'right', PIX, 2);
+    txt('BOMBS', W - 18, 70, 9, C.slate, 'right', PIX, 3);
+    for (i = 0; i < bombs; i++){
+      ctx.save();
+      ctx.translate(W - 24 - i * 16, 84);
+      ctx.rotate(Math.PI / 4);
+      ctx.fillStyle = C.ember;
+      ctx.fillRect(-4, -4, 8, 8);
+      ctx.restore();
+    }
+
+    drawScanner();
+    var left = humans.length;
+    txt(planet ? left + (left === 1 ? ' COLONIST' : ' COLONISTS') : 'PLANET LOST',
+        SC_X, SC_Y + SC_H + 12, 9, planet ? (left <= 3 ? C.flare : C.slate) : C.flare, 'left', PIX, 2);
+    txt(muted ? 'MUTED' : '', SC_X + SC_W, SC_Y + SC_H + 12, 9, C.slate, 'right', PIX, 2);
+  }
+
+  function scrim(a){ ctx.fillStyle = 'rgba(4,6,12,' + a + ')'; ctx.fillRect(0, 0, W, H); }
+  function blink(){ return Math.floor(frame / 26) % 2 === 0; }
+
+  var LEGEND = [['lander','LANDER','150'],['mutant','MUTANT','150'],['baiter','BAITER','200'],['bomber','BOMBER','250'],['pod','POD','1000']];
+
+  function drawTitle(){
+    scrim(.9);
+    txt('DEFENDER', W / 2, 214, 58, C.bone, 'center', PIX, 14);
+    ctx.save();
+    ctx.globalAlpha = .5;
+    txt('DEFENDER', W / 2 + 2, 216, 58, C.ion, 'center', PIX, 14);
+    ctx.restore();
+    txt('A tribute to the 1981 arcade original', W / 2, 246, 13, C.slate, 'center', MONO, 1);
+
+    txt('Landers drag the ten colonists to the top of the sky.', W / 2, 300, 14, C.bone, 'center', MONO, 0);
+    txt('Shoot a lander mid-lift, then catch the falling colonist and set them down.', W / 2, 324, 14, C.bone, 'center', MONO, 0);
+    txt('Lose all ten and the planet burns \u2014 every lander mutates and hunts you.', W / 2, 348, 14, C.flare, 'center', MONO, 0);
+
+    for (var i = 0; i < LEGEND.length; i++){
+      var x = 160 + i * 160;
+      drawSprite(LEGEND[i][0], x, 424);
+      txt(LEGEND[i][1], x, 462, 9, C.slate, 'center', PIX, 2);
+      txt(LEGEND[i][2], x, 480, 11, C.ember, 'center', PIX, 1);
+    }
+
+    if (blink()) txt('PRESS ENTER TO LAUNCH', W / 2, 546, 16, C.phos, 'center', PIX, 4);
+    txt('ARROWS  fly    SPACE  fire    B  smart bomb    H  hyperspace', W / 2, 582, 12, C.slate, 'center', MONO, 0);
+    if (best > 0) txt('BEST  ' + pad(best, 6), W / 2, 610, 11, C.slate, 'center', PIX, 2);
+  }
+
+  function drawOver(){
+    scrim(.88);
+    txt('GAME OVER', W / 2, 268, 44, C.flare, 'center', PIX, 10);
+    txt('FINAL SCORE', W / 2, 326, 10, C.slate, 'center', PIX, 3);
+    txt(pad(score, 6), W / 2, 366, 34, C.bone, 'center', PIX, 3);
+    txt('WAVE ' + pad(wave, 2) + '     BEST ' + pad(best, 6), W / 2, 402, 12, C.slate, 'center', PIX, 2);
+    txt(planet ? humans.length + ' colonists survived you' : 'The planet did not survive you',
+        W / 2, 438, 14, planet ? C.gold : C.flare, 'center', MONO, 0);
+    if (blink()) txt('PRESS ENTER TO PLAY AGAIN', W / 2, 500, 15, C.phos, 'center', PIX, 4);
+  }
+
+  function drawBreak(){
+    scrim(.6);
+    txt('WAVE ' + pad(wave, 2) + ' CLEARED', W / 2, 296, 34, C.phos, 'center', PIX, 8);
+    txt(bonusLine, W / 2, 340, 14, C.gold, 'center', MONO, 0);
+    txt('+1 SMART BOMB' + (wave % 3 === 0 ? '     +1 SHIP' : ''), W / 2, 372, 11, C.ember, 'center', PIX, 3);
+    var secs = Math.max(0, Math.ceil((190 - breakTimer) / 60));
+    txt('NEXT WAVE IN ' + secs, W / 2, 414, 12, C.slate, 'center', PIX, 3);
+  }
+
+  function drawPaused(){
+    scrim(.72);
+    txt('PAUSED', W / 2, 320, 40, C.bone, 'center', PIX, 10);
+    if (blink()) txt('PRESS P OR ENTER TO RESUME', W / 2, 366, 13, C.slate, 'center', PIX, 3);
+  }
+
+  function draw(){
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    ctx.save();
+    if (shake > 1) ctx.translate(rnd(-shake, shake), rnd(-shake, shake) * .5);
+
+    drawSky();
+    drawTerrain();
+
+    var i;
+    for (i = 0; i < humans.length; i++) drawHuman(humans[i]);
+    for (i = 0; i < foes.length; i++) drawFoe(foes[i]);
+    drawShots();
+    if (p) drawShip();
+
+    for (i = 0; i < parts.length; i++){
+      var q = parts[i];
+      ctx.globalAlpha = Math.max(0, q.life / q.max);
+      ctx.fillStyle = q.c;
+      ctx.fillRect(dx(q.x, cam), PT + q.y, q.s * 2, q.s * 2);
+    }
+    ctx.globalAlpha = 1;
+
+    for (i = 0; i < marks.length; i++){
+      var mk = marks[i];
+      ctx.globalAlpha = Math.min(1, mk.life / 26);
+      txt(mk.t, dx(mk.x, cam), PT + mk.y, 11, mk.c, 'center', PIX, 1);
+    }
+    ctx.globalAlpha = 1;
+    ctx.restore();
+
+    drawHud();
+
+    if (flash > 0){
+      ctx.fillStyle = 'rgba(232,241,255,' + (flash / 60) + ')';
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    if (mode === 'title') drawTitle();
+    else if (mode === 'over') drawOver();
+    else if (mode === 'break') drawBreak();
+    else if (mode === 'paused') drawPaused();
+  }
+
+  var last = 0, acc = 0;
+  function loop(t){
+    requestAnimationFrame(loop);
+    if (!last) last = t;
+    var d = Math.min(t - last, 120);
+    last = t;
+    acc += d;
+    var guard = 0;
+    while (acc >= 16.6667 && guard++ < 6){ step(); acc -= 16.6667; }
+    draw();
+  }
+
+  makeTerrain();
+  cam = 0;
+  if (document.fonts && document.fonts.ready){ document.fonts.ready.then(function(){ draw(); }); }
+  requestAnimationFrame(loop);
+})();
+</script>

@@ -124,40 +124,52 @@ const GAMES: GameCard[] = [
 		art: <DoodleArt />,
 	},
 	{
-		id: "bug-blaster",
-		title: "Bug Blaster",
+		id: "spore-field",
+		title: "Spore Field",
 		tagline: "Retro arcade",
 		blurb:
-			"A mushroom field, a many-segment crawler winding down toward you, and one shot on screen at a time. Split it, clear it, and survive as the waves speed up.",
-		players: "1\u20132 players",
-		modes: "Solo or online rooms",
-		href: "/bug-blaster",
+			"A field of spores, a segmented crawler winding down toward you, and nowhere to hide. Shoot it apart, watch each piece take on a life of its own, and hold out as the field thickens.",
+		players: "Play alone",
+		modes: "Keyboard \u00b7 No room needed",
+		href: "/spore-field",
 		tint: "#F87171",
 		art: <BlasterArt />,
 	},
 	{
-		id: "moon-patrol",
-		title: "Moon Patrol",
+		id: "lunar-buggy",
+		title: "Lunar Buggy",
 		tagline: "Retro arcade",
 		blurb:
-			"Drive a moon buggy over craters and mines while UFOs strafe from above. Jump, shoot forward and up at once, and see how far along the lunar surface you can get.",
+			"Bounce a buggy across the lunar surface, leaping craters and mines while things drop on you from above. Keep your speed up and your wheels under you.",
 		players: "Play alone",
 		modes: "Keyboard \u00b7 No room needed",
-		href: "/moon-patrol",
+		href: "/lunar-buggy",
 		tint: "#C084FC",
 		art: <MoonArt />,
 	},
 	{
-		id: "galaxy-swarm",
-		title: "Galaxy Swarm",
+		id: "galaga",
+		title: "Galaga",
 		tagline: "Retro arcade",
 		blurb:
-			"An alien formation sways overhead, peeling off in diving attack runs while you hold the line. Divers are worth double \u2014 if you can hit them mid-swoop.",
-		players: "1\u20132 players",
-		modes: "Solo or online rooms",
-		href: "/galaxy-swarm",
+			"A formation of alien fighters sways above you, then peels off in screaming dives. Pick them off in formation or gamble on the harder shot mid-swoop.",
+		players: "Play alone",
+		modes: "Keyboard \u00b7 No room needed",
+		href: "/galaga",
 		tint: "#818CF8",
 		art: <SwarmArt />,
+	},
+	{
+		id: "defender",
+		title: "Defender",
+		tagline: "Retro arcade",
+		blurb:
+			"Patrol a scrolling planet surface, blast the landers hauling your people into the sky, and catch anyone who gets dropped. Watch the scanner \u2014 trouble comes from both directions.",
+		players: "Play alone",
+		modes: "Keyboard \u00b7 No room needed",
+		href: "/defender",
+		tint: "#4ADE80",
+		art: <DefenderArt />,
 	},
 ];
 
@@ -536,6 +548,26 @@ function SwarmArt() {
 			<rect x="74" y="56" width="2.6" height="10" fill="#FFFFFF" />
 			<path d="M75 80l-10 -4 4 -8h12l4 8Z" fill="#FACC15" />
 			<rect x="73.7" y="64" width="2.6" height="6" fill="#F87171" />
+		</svg>
+	);
+}
+
+function DefenderArt() {
+	return (
+		<svg width="150" height="92" viewBox="0 0 150 92" fill="none" aria-hidden>
+			<rect x="22" y="8" width="106" height="76" rx="8" fill="#0A0A0A" stroke="#2E2E2E" />
+			<rect x="34" y="16" width="82" height="12" rx="3" fill="#0F1A12" stroke="#4ADE80" strokeWidth="0.8" />
+			<circle cx="52" cy="22" r="1.6" fill="#4ADE80" />
+			<circle cx="76" cy="22" r="1.6" fill="#F87171" />
+			<circle cx="98" cy="22" r="1.6" fill="#FACC15" />
+			<path d="M32 70h86" stroke="#4ADE80" strokeWidth="2" strokeLinecap="round" />
+			<path d="M38 70l6 -8 7 8" stroke="#2f7d4f" strokeWidth="2" fill="none" strokeLinejoin="round" />
+			<path d="M96 70l7 -10 8 10" stroke="#2f7d4f" strokeWidth="2" fill="none" strokeLinejoin="round" />
+			<path d="M56 44l18 0 6 5 -6 5 -18 0 -5 -5Z" fill="#FACC15" />
+			<rect x="80" y="47" width="14" height="2.4" fill="#FFFFFF" />
+			<ellipse cx="104" cy="38" rx="7" ry="4" fill="#C084FC" />
+			<path d="M104 42v7" stroke="#C084FC" strokeWidth="1.6" />
+			<rect x="101" y="52" width="6" height="7" rx="1.5" fill="#38BDF8" />
 		</svg>
 	);
 }
