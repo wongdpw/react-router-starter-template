@@ -171,6 +171,18 @@ const GAMES: GameCard[] = [
 		tint: "#4ADE80",
 		art: <DefenderArt />,
 	},
+	{
+		id: "hop-home",
+		title: "Hop Home",
+		tagline: "Retro arcade",
+		blurb:
+			"Dodge six lanes of traffic, then ride logs and turtles across the river \u2014 fill all five homes before the clock runs out, or lose a life and start the crossing over.",
+		players: "Play alone",
+		modes: "Keyboard \u00b7 No room needed",
+		href: "/hop-home",
+		tint: "#4ADE80",
+		art: <HopArt />,
+	},
 ];
 
 export default function Games({ loaderData }: Route.ComponentProps) {
@@ -568,6 +580,27 @@ function DefenderArt() {
 			<ellipse cx="104" cy="38" rx="7" ry="4" fill="#C084FC" />
 			<path d="M104 42v7" stroke="#C084FC" strokeWidth="1.6" />
 			<rect x="101" y="52" width="6" height="7" rx="1.5" fill="#38BDF8" />
+		</svg>
+	);
+}
+
+function HopArt() {
+	return (
+		<svg width="150" height="92" viewBox="0 0 150 92" fill="none" aria-hidden>
+			<rect x="22" y="8" width="106" height="76" rx="8" fill="#0A0A0A" stroke="#2E2E2E" />
+			<rect x="22" y="16" width="106" height="14" fill="#0f2a17" />
+			<rect x="30" y="19" width="10" height="8" fill="#4ADE80" opacity="0.7" />
+			<rect x="66" y="19" width="10" height="8" fill="#4ADE80" opacity="0.7" />
+			<rect x="102" y="19" width="10" height="8" fill="#4ADE80" opacity="0.7" />
+			<rect x="22" y="34" width="106" height="20" fill="#0a1f33" />
+			<rect x="34" y="41" width="20" height="8" rx="3" fill="#92603A" />
+			<rect x="78" y="41" width="16" height="8" rx="3" fill="#4ADE80" />
+			<rect x="22" y="58" width="106" height="20" fill="#1c1c1c" />
+			<rect x="40" y="64" width="16" height="9" rx="1.5" fill="#F87171" />
+			<rect x="90" y="64" width="16" height="9" rx="1.5" fill="#F87171" />
+			<circle cx="66" cy="24" r="7" fill="#4ADE80" />
+			<circle cx="62" cy="21" r="1.6" fill="#0A0A0A" />
+			<circle cx="70" cy="21" r="1.6" fill="#0A0A0A" />
 		</svg>
 	);
 }

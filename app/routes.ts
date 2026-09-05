@@ -14,6 +14,7 @@ export default [
 	route("lunar-buggy", "routes/lunar-buggy.tsx"),
 	route("galaga", "routes/galaga.tsx"),
 	route("defender", "routes/defender.tsx"),
+	route("hop-home", "routes/hop-home.tsx"),
 	route("bug-blaster", "routes/bug-blaster.tsx"),
 	route("bug-blaster/online", "routes/bug-blaster.online.tsx"),
 	route("bug-blaster/room/:code", "routes/bug-blaster.room.$code.tsx"),

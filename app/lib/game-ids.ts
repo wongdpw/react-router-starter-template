@@ -19,6 +19,7 @@ export const GAME_IDS = [
 	"lunar-buggy",
 	"galaga",
 	"defender",
+	"hop-home",
 ] as const;
 
 export type GameId = (typeof GAME_IDS)[number];

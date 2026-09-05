@@ -1,25 +1,37 @@
-# Spore Field: score row no longer cut off
+# Hop Home — original Frogger-style crossing game
 
-## The cause
-Two things compounded:
-1. The game's canvas is CSS-sized (width:100%, height:auto) with no height
-   ceiling, so at 620px wide it renders 661px tall. With the marquee, HUD,
-   legend and padding that's ~950px of content inside a 700px iframe.
-2. The page centred that too-tall cabinet with align-items:center, so the
-   overflow was split top and bottom — pushing the score HUD up out of
-   view and leaving the scrollbar you saw.
+Titled "Hop Home" rather than the trademarked name, same as the other
+arcade games here. Hop through six lanes of traffic, then ride logs and
+turtles (some of which submerge) across the river, into one of five open
+home slots before the round timer runs out. Three lives, timer resets
+each successful crossing, difficulty ramps each round via a speed
+multiplier.
 
-## The fix
-- Canvas now caps at calc(100dvh - 292px), so the playfield can never
-  push the HUD off-screen on a short viewport.
-- Page aligns to flex-start instead of centre, so the top of the cabinet
-  is always the first thing visible.
-- Iframe raised 700 -> 1000px, which is enough for the full-width 620x661
-  playfield plus all its furniture (953px used, 47px spare).
+## New file
+- app/routes/hop-home.tsx  — the game (canvas, no external assets)
 
-The 292px reserve is measured from the actual chrome: padding 40, marquee
-90, gaps 42, HUD 40, legend+footer 80.
+## Replaced files
+- app/routes.ts        — registers /hop-home
+- app/lib/game-ids.ts  — adds "hop-home" (needed for high scores + the
+                         play-count API's server-side whitelist)
+- app/routes/games.tsx — adds the Hop Home card with original frog/lane art
 
-## Files
-- public/spore-field-game.html  (canvas max-height + top alignment)
-- app/routes/spore-field.tsx    (iframe height 700 -> 1000)
+## Wired in from the start
+- Shared arcade high-score board (top 10, 3-letter initials)
+- Shared arcade sound engine (hop, splash/hit, death, wave-up, win fanfare)
+- "Sound: on/off" toggle, same as Bug Blaster and Galaxy Swarm
+
+## Validation performed
+- npm run typecheck / build — clean
+- I also ported the pure game-update logic into standalone Node scripts
+  and ran ~600 simulated lives (scripted bots) against it. Zero crashes,
+  zero out-of-bounds, zero NaN, zero home-slot overfill across the whole
+  run. This confirms the engine is structurally sound; it does NOT
+  confirm the difficulty is well-tuned for a human, since my bots react
+  slower and less holistically than a real player would. Please playtest
+  and tell me if it feels too hard/easy/fast — the knobs are all at the
+  top of the file (ROUND_SECONDS, lane gap/speed in buildLanes()).
+
+## After dragging files in
+1. npm run dev, open /hop-home
+2. git add . ; git commit -m "Add Hop Home" ; git push
