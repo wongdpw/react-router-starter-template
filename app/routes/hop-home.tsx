@@ -369,13 +369,8 @@ export default function HopHome({}: Route.ComponentProps) {
 			const y = row * CELL;
 			g.fillStyle = "#1c1c1c";
 			g.fillRect(0, y, W, CELL);
-			// asphalt speckle
-			g.fillStyle = "rgba(255,255,255,0.03)";
-			for (let sx = 0; sx < W; sx += 17) {
-				g.fillRect((sx + row * 7) % W, y + ((sx * 13) % CELL), 2, 2);
-			}
 			// lane divider dashes, scrolling with traffic direction for readability
-			g.fillStyle = "rgba(250, 204, 21, 0.35)";
+			g.fillStyle = "#FACC15";
 			const dashLen = 14;
 			const dashGap = 10;
 			const period = dashLen + dashGap;
@@ -389,50 +384,41 @@ export default function HopHome({}: Route.ComponentProps) {
 			const y = row * CELL;
 			g.fillStyle = "#0a1f33";
 			g.fillRect(0, y, W, CELL);
-			// current ripples, drifting the same direction as the lane
-			g.strokeStyle = "rgba(148, 210, 255, 0.16)";
-			g.lineWidth = 1.5;
+			// current ripples, drifting the same direction as the lane — flat dashes, no gradients
+			g.fillStyle = "#38BDF8";
+			g.globalAlpha = 0.4;
 			const waveLen = 30;
 			const scroll = (phase * dir * 14) % waveLen;
-			for (let wy = 6; wy < CELL; wy += 9) {
-				g.beginPath();
-				for (let wx = -waveLen; wx < W + waveLen; wx += 3) {
-					const yy = y + wy + Math.sin((wx + scroll) / waveLen * Math.PI * 2) * 2;
-					if (wx === -waveLen) g.moveTo(wx, yy);
-					else g.lineTo(wx, yy);
+			for (let wy = 8; wy < CELL; wy += 10) {
+				for (let wx = -waveLen; wx < W + waveLen; wx += waveLen) {
+					g.fillRect(wx + scroll, y + wy, 10, 2);
 				}
-				g.stroke();
 			}
+			g.globalAlpha = 1;
 		}
 
 		function drawCar(g: CanvasRenderingContext2D, x: number, y: number, w: number, dir: 1 | -1, hue: string) {
 			const bodyH = CELL - 12;
 			const top = y + 6;
 			g.save();
-			// shadow
-			g.fillStyle = "rgba(0,0,0,0.35)";
-			g.fillRect(x + 2, top + bodyH - 1, w - 4, 3);
-			// body
+			// body — flat silhouette, no gradient/shadow
 			g.fillStyle = hue;
 			g.beginPath();
 			g.moveTo(x + 3, top + bodyH);
 			g.lineTo(x + 3, top + 5);
-			g.quadraticCurveTo(x + 3, top, x + 9, top);
+			g.lineTo(x + 9, top);
 			g.lineTo(x + w - 9, top);
-			g.quadraticCurveTo(x + w - 3, top, x + w - 3, top + 5);
+			g.lineTo(x + w - 3, top + 5);
 			g.lineTo(x + w - 3, top + bodyH);
 			g.closePath();
 			g.fill();
-			// cabin (offset toward the direction of travel, like a hood/trunk silhouette)
+			// cabin block, solid black like the alien/ship silhouettes
 			const cabinX = dir === 1 ? x + w * 0.42 : x + w * 0.18;
 			const cabinW = w * 0.4;
-			g.fillStyle = "rgba(10,10,10,0.55)";
+			g.fillStyle = "#0A0A0A";
 			g.fillRect(cabinX, top + 3, cabinW, bodyH - 6);
-			// windshield highlight
-			g.fillStyle = "rgba(200,230,255,0.35)";
-			g.fillRect(dir === 1 ? cabinX + cabinW - 4 : cabinX, top + 4, 3, bodyH - 8);
 			// headlight, on the leading edge
-			g.fillStyle = "#FDE68A";
+			g.fillStyle = "#FACC15";
 			const lightX = dir === 1 ? x + w - 6 : x + 2;
 			g.fillRect(lightX, top + bodyH / 2 - 2, 4, 4);
 			// wheels
@@ -448,35 +434,22 @@ export default function HopHome({}: Route.ComponentProps) {
 			const h = CELL - 12;
 			const top = y + 6;
 			g.save();
-			g.fillStyle = "#0a1f33";
+			// flat bark body, single fill — no gradient
+			g.fillStyle = "#a9784a";
 			g.beginPath();
 			g.ellipse(x + 3, top + h / 2, 3, h / 2, 0, 0, Math.PI * 2);
 			g.ellipse(x + w - 3, top + h / 2, 3, h / 2, 0, 0, Math.PI * 2);
 			g.fill();
-			// bark body
-			const grad = g.createLinearGradient(0, top, 0, top + h);
-			grad.addColorStop(0, "#a9784a");
-			grad.addColorStop(1, "#6e4a29");
-			g.fillStyle = grad;
 			g.fillRect(x + 3, top, w - 6, h);
-			// end-grain rings on the leading edge
+			// end-grain ring on the leading edge, flat two-tone
 			g.fillStyle = "#c99a63";
 			g.beginPath();
 			g.ellipse(x + w - 3, top + h / 2, 3, h / 2, 0, 0, Math.PI * 2);
 			g.fill();
-			g.strokeStyle = "#6e4a29";
-			g.lineWidth = 1;
+			g.fillStyle = "#6e4a29";
 			g.beginPath();
 			g.ellipse(x + w - 3, top + h / 2, 1.6, h / 3, 0, 0, Math.PI * 2);
-			g.stroke();
-			// bark grain lines along the length
-			g.strokeStyle = "rgba(0,0,0,0.18)";
-			for (let gy = top + 4; gy < top + h; gy += 4) {
-				g.beginPath();
-				g.moveTo(x + 4, gy);
-				g.lineTo(x + w - 4, gy);
-				g.stroke();
-			}
+			g.fill();
 			g.restore();
 		}
 
@@ -489,28 +462,27 @@ export default function HopHome({}: Route.ComponentProps) {
 			const y = cy + bob + sinking * 4;
 			// ripple ring when mostly submerged
 			if (sinking > 0.4) {
-				g.strokeStyle = `rgba(148, 210, 255, ${0.3 * (1 - sinking)})`;
+				g.strokeStyle = "#38BDF8";
+				g.globalAlpha = 0.3 * (1 - sinking);
 				g.lineWidth = 1.5;
 				g.beginPath();
 				g.ellipse(cx, y, r + 3, r * 0.6 + 2, 0, 0, Math.PI * 2);
 				g.stroke();
+				g.globalAlpha = 1 - sinking * 0.85;
 			}
 			// feet
-			g.fillStyle = "#2f7d4f";
+			g.fillStyle = "#166534";
 			for (const [dx, dy] of [[-r * 0.8, -r * 0.5], [r * 0.8, -r * 0.5], [-r * 0.8, r * 0.5], [r * 0.8, r * 0.5]]) {
 				g.beginPath();
 				g.ellipse(cx + dx, y + dy, 3.2, 2.2, 0, 0, Math.PI * 2);
 				g.fill();
 			}
-			// shell
-			const shellGrad = g.createRadialGradient(cx, y - 2, 2, cx, y, r);
-			shellGrad.addColorStop(0, "#6fdb8f");
-			shellGrad.addColorStop(1, "#2f7d4f");
-			g.fillStyle = shellGrad;
+			// shell — flat fill, no radial gradient
+			g.fillStyle = "#4ADE80";
 			g.beginPath();
 			g.ellipse(cx, y, r, r * 0.78, 0, 0, Math.PI * 2);
 			g.fill();
-			g.strokeStyle = "rgba(10,10,10,0.35)";
+			g.strokeStyle = "#0A0A0A";
 			g.lineWidth = 1;
 			g.beginPath();
 			g.moveTo(cx - r * 0.6, y - r * 0.35);
@@ -531,9 +503,9 @@ export default function HopHome({}: Route.ComponentProps) {
 			g.translate(fx, fy);
 			g.scale(stretch, squash);
 
-			// legs, splayed out and tucking in with the jump pulse
+			// legs, splayed out and tucking in with the jump pulse — flat fill
 			const legSpread = CELL * (0.4 + jump * 0.12);
-			g.fillStyle = "#2f7d4f";
+			g.fillStyle = "#166534";
 			for (const side of [-1, 1] as const) {
 				g.beginPath();
 				g.ellipse(side * legSpread * 0.55, CELL * 0.16, 6, 3.2, side * 0.5, 0, Math.PI * 2);
@@ -543,35 +515,24 @@ export default function HopHome({}: Route.ComponentProps) {
 				g.fill();
 			}
 
-			// body
-			const bodyGrad = g.createRadialGradient(-3, -4, 2, 0, 0, CELL * 0.36);
-			bodyGrad.addColorStop(0, "#86efac");
-			bodyGrad.addColorStop(1, "#22c55e");
-			g.fillStyle = bodyGrad;
+			// body — single flat fill, matches the alien/ship silhouette approach
+			g.fillStyle = "#4ADE80";
 			g.beginPath();
 			g.ellipse(0, 0, CELL * 0.32, CELL * 0.27, 0, 0, Math.PI * 2);
 			g.fill();
 
-			// darker back markings
-			g.fillStyle = "rgba(22, 101, 52, 0.45)";
+			// darker back marking, flat fill (no alpha gradient)
+			g.fillStyle = "#22c55e";
 			g.beginPath();
 			g.ellipse(0, 2, CELL * 0.18, CELL * 0.14, 0, 0, Math.PI * 2);
 			g.fill();
 
-			// eyes, offset slightly toward the direction of travel
+			// eyes, offset slightly toward the direction of travel — solid black dots like Galaxy Swarm
 			const eyeDx = facing === 0 ? 0 : facing * 2;
 			for (const side of [-1, 1] as const) {
-				g.fillStyle = "#166534";
-				g.beginPath();
-				g.arc(side * CELL * 0.16 + eyeDx, -CELL * 0.2, 5, 0, Math.PI * 2);
-				g.fill();
 				g.fillStyle = "#0A0A0A";
 				g.beginPath();
-				g.arc(side * CELL * 0.16 + eyeDx, -CELL * 0.2, 2.2, 0, Math.PI * 2);
-				g.fill();
-				g.fillStyle = "rgba(255,255,255,0.7)";
-				g.beginPath();
-				g.arc(side * CELL * 0.16 + eyeDx - 0.7, -CELL * 0.22, 0.8, 0, Math.PI * 2);
+				g.arc(side * CELL * 0.16 + eyeDx, -CELL * 0.2, 3, 0, Math.PI * 2);
 				g.fill();
 			}
 			g.restore();
@@ -609,9 +570,9 @@ export default function HopHome({}: Route.ComponentProps) {
 			for (const home of state.homes) {
 				const x = home.col * CELL;
 				const y = homeRow() * CELL;
-				g.fillStyle = home.filled ? "rgba(74, 222, 128, 0.18)" : "rgba(10, 10, 10, 0.6)";
+				g.fillStyle = home.filled ? "#123b1e" : "#0A0A0A";
 				g.fillRect(x + 2, y + 2, CELL - 4, CELL - 4);
-				g.strokeStyle = home.filled ? "#4ADE80" : "rgba(74, 222, 128, 0.25)";
+				g.strokeStyle = "#4ADE80";
 				g.lineWidth = 1.5;
 				g.strokeRect(x + 3, y + 3, CELL - 6, CELL - 6);
 				if (home.filled) {
@@ -653,7 +614,7 @@ export default function HopHome({}: Route.ComponentProps) {
 
 			// HUD
 			g.font = "bold 15px Inter, sans-serif";
-			g.fillStyle = "#4ADE80";
+			g.fillStyle = "#FACC15";
 			g.textAlign = "left";
 			g.fillText(`SCORE ${state.score}`, 8, 18);
 			g.textAlign = "center";

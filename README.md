@@ -1,36 +1,45 @@
-# Fix: canvas games rendering off-center
+# Hop Home — visual style pass to match Bug Blaster / Galaxy Swarm
 
-## Root cause
-Tailwind's Preflight reset (pulled in via `@import "tailwindcss"` in
-app.css) sets `canvas, iframe, img, svg, video { display: block }`
-globally. All three canvas games centered their canvas using the
-PARENT'S `text-align: center` — which only works on inline/inline-block
-content. A block-level element ignores text-align entirely; its position
-depends on its own margin. With none set, the canvas had no defined
-horizontal position, leaving it vulnerable to drifting off-center
-depending on browser, font-loading timing, and viewport specifics.
+## What changed
+Rendering only, in `app/routes/hop-home.tsx`. Compared Hop Home's draw
+functions against Galaxy Swarm's (`drawAlien`, `drawPlayer`) and found
+Hop Home had drifted toward a softer, painterly style — radial/linear
+gradients, translucent shadows, sine-wave water lines, bark-grain
+hatching — while Galaxy Swarm (and by extension the rest of the arcade)
+uses flat, solid-fill silhouettes with black accent shapes and no
+gradients or soft alpha shading.
 
-The five iframe-based games (Moon Patrol, Defender, Galaga, Lunar Buggy,
-Spore Field) were unaffected — they use width:100% rather than relying
-on centering.
+Rewrote every draw function to match that flat-silhouette language:
+- **Cars**: dropped the shadow + quadratic curves + soft windshield
+  highlight; now a squared polygon body with a solid black cabin block,
+  same shape language as the alien/ship silhouettes.
+- **Log**: dropped the linear gradient and grain hatching; flat bark
+  fill with a simple two-tone end-grain ring.
+- **Turtle**: dropped the radial gradient shell and soft rgba shading;
+  flat green shell fill, black shell-line strokes.
+- **Frog**: dropped the radial gradient body and soft double-ring eyes;
+  flat fill body + single solid black eye dots, same as the alien eyes
+  in Galaxy Swarm.
+- **Road/river texture**: dropped the speckle noise and sine-wave
+  ripple lines; flat dash markings for both, matching the flat starfield
+  dot approach used elsewhere.
+- **HUD**: SCORE text changed from green to gold (`#FACC15`) to match
+  Galaxy Swarm's HUD color; home slots use flat fills instead of
+  translucent ones.
 
-## The fix
-Added explicit `margin: "0 auto"` (plus `display: "block"` for clarity)
-to the canvas style in all three affected games. This centers a
-block-level element unambiguously, independent of text-align, Preflight,
-or any browser-specific quirk.
+## What did NOT change
+All game logic — lane building, obstacle movement, collision detection,
+scoring, round/lives handling, high-score reporting, sound calls — is
+byte-for-byte identical to what you uploaded. This was a pure rendering
+pass, same approach used for the earlier graphics rewrite in this repo.
 
-## Files
-- app/routes/hop-home.tsx
-- app/routes/bug-blaster.tsx
-- app/routes/galaxy-swarm.tsx
+## After dragging the file in
+1. Replace `app/routes/hop-home.tsx` with this version
+2. `npm run dev`, open `/hop-home`, confirm it plays the same but looks
+   flatter/bolder, closer to Galaxy Swarm and Bug Blaster
+3. `git add . ; git commit -m "Match Hop Home visuals to arcade style" ; git push`
 
-## Verification
-- npm run typecheck / build: clean
-- Reproduced the real production Preflight CSS in a standalone headless
-  render and confirmed the fixed version centers correctly. My headless
-  tool did not reproduce the exact off-center symptom from your
-  screenshot (likely an older rendering engine that handles Preflight's
-  cascade or font-loading timing differently from a real browser) — so
-  please confirm on your end after deploying that it now looks right in
-  an actual browser, with DevTools closed.
+Note: I only had `hop-home.tsx`, `galaxy-swarm.tsx`, and
+`bug-blaster.online.tsx` (the online-lobby page, not the game canvas) to
+compare against. If Bug Blaster's actual game canvas uses a noticeably
+different style than Galaxy Swarm, let me know and I can adjust further.
