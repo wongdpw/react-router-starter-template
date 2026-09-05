@@ -68,7 +68,7 @@ export default function SporeField({}: Route.ComponentProps) {
 					allow="fullscreen"
 					style={{
 						width: "100%",
-						height: 700,
+						height: 1000,
 						border: `2px solid ${COLORS.border}`,
 						borderRadius: 12,
 						display: "block",

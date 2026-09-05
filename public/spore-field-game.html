@@ -27,9 +27,9 @@
     font-family:"IBM Plex Sans", system-ui, sans-serif;
     min-height:100dvh;
     display:flex;
-    align-items:center;
+    align-items:flex-start;
     justify-content:center;
-    padding:clamp(12px,3vw,32px);
+    padding:clamp(10px,2vw,20px);
   }
   .cab{
     width:min(100%, 620px);
@@ -125,8 +125,13 @@
   canvas{
     display:block;
     width:100%;
+    /* keep the whole cabinet inside the viewport: the marquee, HUD,
+       legend and padding need roughly 300px, so the playfield takes
+       what's left rather than overflowing. */
+    max-height:calc(100dvh - 292px);
     height:auto;
     aspect-ratio:480/512;
+    margin-inline:auto;
     image-rendering:pixelated;
     background:#04030A;
     border-radius:3px;

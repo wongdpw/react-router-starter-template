@@ -1,33 +1,25 @@
-# Galaga and Lunar Buggy: bigger in their frames
+# Spore Field: score row no longer cut off
 
 ## The cause
-Both games scale to fit the *browser viewport*, subtracting a fixed chunk
-for the page furniture they expect around them when opened standalone
-(Galaga -240px, Lunar Buggy -300px of height). Inside our iframe that
-allowance is far too big, so the height term won the min() and both
-games were pinned at 1x:
-
-  Galaga       224x288 native -> rendered 224x288  (1x)
-  Lunar Buggy  384x216 native -> rendered 384x216  (1x)
-
-Spore Field looked right because it sizes off width, not height.
+Two things compounded:
+1. The game's canvas is CSS-sized (width:100%, height:auto) with no height
+   ceiling, so at 620px wide it renders 661px tall. With the marquee, HUD,
+   legend and padding that's ~950px of content inside a 700px iframe.
+2. The page centred that too-tall cabinet with align-items:center, so the
+   overflow was split top and bottom — pushing the score HUD up out of
+   view and leaving the scrollbar you saw.
 
 ## The fix
-- Trimmed each game's chrome budget to what its own UI actually needs
-  (Galaga -190, Lunar Buggy -180) and let Galaga use half-step scaling
-  instead of whole integers only.
-- Raised the Galaga iframe to 820px so its tall 224x288 screen has room
-  to reach 2x.
+- Canvas now caps at calc(100dvh - 292px), so the playfield can never
+  push the HUD off-screen on a short viewport.
+- Page aligns to flex-start instead of centre, so the top of the cabinet
+  is always the first thing visible.
+- Iframe raised 700 -> 1000px, which is enough for the full-width 620x661
+  playfield plus all its furniture (953px used, 47px spare).
 
-Result:
-  Galaga       -> 2x   (448x576)
-  Lunar Buggy  -> 2x   (768x432)
-
-Lunar Buggy is width-bound, so it reaches 2x at its existing frame height;
-only the chrome budget mattered there.
+The 292px reserve is measured from the actual chrome: padding 40, marquee
+90, gaps 42, HUD 40, legend+footer 80.
 
 ## Files
-- public/galaga-game.html       (fit() budget + half-step scaling)
-- public/lunar-buggy-game.html  (fit() budget)
-- app/routes/galaga.tsx         (iframe height 700 -> 820)
-- app/routes/lunar-buggy.tsx    (iframe height 620 -> 640)
+- public/spore-field-game.html  (canvas max-height + top alignment)
+- app/routes/spore-field.tsx    (iframe height 700 -> 1000)
