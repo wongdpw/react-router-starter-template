@@ -195,6 +195,18 @@ const GAMES: GameCard[] = [
 		tint: "#FACC15",
 		art: <PaperArt />,
 	},
+	{
+		id: "dig-dug",
+		title: "Dig Dug",
+		tagline: "Retro arcade",
+		blurb:
+			"Tunnel through four strata of earth, pump monsters up until they pop, and drop boulders on anything still standing. Fygars breathe fire down the tunnel — and everything can turn to eyes and drift straight through the dirt.",
+		players: "Play alone",
+		modes: "Keyboard · No room needed",
+		href: "/dig-dug",
+		tint: "#FF8A1E",
+		art: <DigArt />,
+	},
 ];
 
 export default function Games({ loaderData }: Route.ComponentProps) {
@@ -632,6 +644,34 @@ function PaperArt() {
 			<path d="M72 54a3 3 0 0 1 6 0Z" fill="#ef4444" />
 			{/* thrown paper */}
 			<rect x="56" y="46" width="6" height="4" fill="#f5f5f5" transform="rotate(-20 59 48)" />
+		</svg>
+	);
+}
+
+function DigArt() {
+	return (
+		<svg width="150" height="92" viewBox="0 0 150 92" fill="none" aria-hidden>
+			<rect x="22" y="8" width="106" height="76" rx="8" fill="#0A0A0A" stroke="#2E2E2E" />
+			{/* sky strip */}
+			<rect x="22" y="8" width="106" height="10" fill="#1a2040" />
+			{/* four strata of dirt */}
+			<rect x="22" y="18" width="106" height="16" fill="#c98a3c" />
+			<rect x="22" y="34" width="106" height="16" fill="#d4553a" />
+			<rect x="22" y="50" width="106" height="17" fill="#3f8fd8" />
+			<rect x="22" y="67" width="106" height="17" fill="#5fa83f" />
+			{/* dug tunnel */}
+			<path d="M60 18h10v18h20v14h-10v18h-10V50H60Z" fill="#050406" />
+			{/* boulder mid-fall */}
+			<circle cx="100" cy="46" r="7" fill="#9aa3b2" stroke="#5b6474" strokeWidth="1.5" />
+			{/* hero at the junction */}
+			<rect x="63" y="46" width="8" height="8" rx="1.5" fill="#ffffff" />
+			<rect x="64" y="49" width="6" height="5" fill="#2f6ce8" />
+			{/* pooka giving chase */}
+			<circle cx="86" cy="60" r="6" fill="#ee3126" />
+			<rect x="83" y="58" width="2" height="2" fill="#ffffff" />
+			<rect x="88" y="58" width="2" height="2" fill="#ffffff" />
+			{/* pump line between them */}
+			<path d="M71 50h11" stroke="#e6e9f2" strokeWidth="2" strokeLinecap="round" />
 		</svg>
 	);
 }

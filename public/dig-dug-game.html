@@ -1,0 +1,1579 @@
+<title>Dig Dug Clone</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Chakra+Petch:wght@400;600&display=swap">
+<style>
+  :root{
+    --void:#08060b;
+    --panel:#1a1109;
+    --edge:#31200f;
+    --ink:#ffeede;
+    --dim:#bb9469;
+    --amber:#ffb03a;
+    --red:#ff4a3d;
+    --leaf:#5ed24a;
+    --sky:#3b62d8;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    min-height:100vh;
+    background:
+      radial-gradient(120% 80% at 50% -10%, #3a2410 0%, rgba(58,36,16,0) 58%),
+      radial-gradient(90% 60% at 50% 112%, #142a5e 0%, rgba(20,42,94,0) 55%),
+      var(--void);
+    color:var(--ink);
+    font-family:"Chakra Petch","Segoe UI",system-ui,sans-serif;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:16px;
+    padding:20px 14px 24px;
+  }
+  header{text-align:center;display:flex;flex-direction:column;gap:9px;align-items:center}
+  h1{
+    font-family:"Press Start 2P","Courier New",monospace;
+    font-size:clamp(20px,5.4vw,34px);
+    letter-spacing:.1em;
+    margin:0;
+    color:var(--ink);
+    text-shadow:
+      -2px 0 0 var(--red),
+      2px 0 0 var(--amber),
+      0 0 22px rgba(255,176,58,.35);
+  }
+  .tag{
+    font-size:11px;
+    letter-spacing:.24em;
+    text-transform:uppercase;
+    color:var(--dim);
+    font-weight:600;
+  }
+  .tag b{color:var(--amber);font-weight:600}
+  #cabinet{
+    position:relative;
+    padding:13px;
+    border-radius:14px;
+    background:linear-gradient(180deg,var(--edge) 0%,var(--panel) 45%,#0a0705 100%);
+    box-shadow:
+      0 0 0 1px rgba(255,190,110,.16),
+      0 0 34px rgba(255,150,50,.12),
+      0 24px 60px rgba(0,0,0,.68),
+      inset 0 1px 0 rgba(255,220,170,.1);
+  }
+  #screenwrap{position:relative;line-height:0;border-radius:4px;overflow:hidden;background:#000;
+    box-shadow:inset 0 0 0 2px #000}
+  canvas{display:block;image-rendering:pixelated;background:#000;touch-action:none}
+  .crt{
+    position:absolute;inset:0;pointer-events:none;
+    background:
+      repeating-linear-gradient(180deg, rgba(0,0,0,.30) 0 1px, rgba(0,0,0,0) 1px 3px),
+      radial-gradient(120% 100% at 50% 50%, rgba(0,0,0,0) 55%, rgba(0,0,0,.5) 100%);
+    mix-blend-mode:multiply;
+  }
+  .glare{
+    position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(196deg, rgba(255,235,200,.09) 0%, rgba(255,235,200,0) 34%);
+  }
+  .legend{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;max-width:560px}
+  .chip{
+    display:inline-flex;align-items:center;gap:7px;
+    padding:5px 10px;border-radius:999px;
+    background:rgba(49,32,15,.72);
+    border:1px solid rgba(187,148,105,.24);
+    font-size:12px;color:var(--dim);letter-spacing:.02em;
+  }
+  kbd{
+    font-family:"Press Start 2P","Courier New",monospace;
+    font-size:8px;color:var(--ink);
+    background:#150d06;border:1px solid rgba(187,148,105,.4);
+    border-bottom-width:2px;border-radius:3px;padding:4px 5px 3px;
+  }
+  footer{font-size:11px;color:#8a6a49;letter-spacing:.06em;text-align:center;max-width:520px}
+  #pad{display:none;gap:26px;align-items:center;justify-content:center;user-select:none;touch-action:none}
+  #pad .dpad{display:grid;grid-template-columns:repeat(3,46px);grid-template-rows:repeat(3,46px)}
+  #pad button{
+    -webkit-tap-highlight-color:transparent;
+    font-family:"Press Start 2P","Courier New",monospace;font-size:10px;
+    color:var(--ink);background:rgba(49,32,15,.9);
+    border:1px solid rgba(187,148,105,.4);border-radius:8px;
+    display:flex;align-items:center;justify-content:center;
+  }
+  #pad button:active{background:var(--amber);color:#140b04}
+  #pad .fire{width:82px;height:82px;border-radius:50%;font-size:9px;letter-spacing:.1em}
+  @media (pointer:coarse){ #pad{display:flex} }
+  @media (prefers-reduced-motion:no-preference){
+    h1{animation:flick 7s infinite steps(1)}
+    @keyframes flick{0%,96%,100%{opacity:1}97%{opacity:.72}98%{opacity:1}99%{opacity:.85}}
+  }
+</style>
+
+<header>
+  <h1>DIG DUG</h1>
+  <div class="tag">Fan clone &middot; <b>pump &amp; pop</b> &middot; drop rocks on Pookas and Fygars</div>
+</header>
+
+<div id="cabinet">
+  <div id="screenwrap">
+    <canvas id="game" width="224" height="288"></canvas>
+    <div class="glare"></div>
+    <div class="crt"></div>
+  </div>
+</div>
+
+<div id="pad">
+  <div class="dpad">
+    <span></span><button data-k="up">&uarr;</button><span></span>
+    <button data-k="left">&larr;</button><span></span><button data-k="right">&rarr;</button>
+    <span></span><button data-k="down">&darr;</button><span></span>
+  </div>
+  <button class="fire" data-k="fire">PUMP</button>
+</div>
+
+<div class="legend">
+  <span class="chip"><kbd>&larr;</kbd><kbd>&darr;</kbd><kbd>&uarr;</kbd><kbd>&rarr;</kbd> dig</span>
+  <span class="chip"><kbd>SPACE</kbd> pump</span>
+  <span class="chip"><kbd>P</kbd> pause</span>
+  <span class="chip"><kbd>M</kbd> sound</span>
+  <span class="chip"><kbd>R</kbd> restart</span>
+</div>
+
+<footer>Four pumps pops a monster &mdash; the deeper the dirt, the bigger the score. Dig out the ground beneath a rock and step aside: a falling boulder takes out everything in the shaft at once. Fygars breathe fire down the tunnel, and monsters turn to eyes to float through solid earth.</footer>
+
+<script>
+"use strict";
+const W = 224, H = 288, CELL = 16;
+const COLS = 14, ROWS = 16;        /* playfield grid; row 0 is open sky */
+const FY = 16;                     /* screen y of playfield row 0 */
+const FH = ROWS * CELL;
+
+const cv = document.getElementById('game');
+const ctx = cv.getContext('2d');
+ctx.imageSmoothingEnabled = false;
+
+const RIGHT = 0, DOWN = 1, LEFT = 2, UP = 3;
+const DX = [1, 0, -1, 0], DY = [0, 1, 0, -1];
+
+/* four dirt strata; the deeper you pop a monster the more it pays */
+const LAYER_TOP = [1, 4, 7, 11];
+function layerOfRow(r){
+  if (r >= LAYER_TOP[3]) return 3;
+  if (r >= LAYER_TOP[2]) return 2;
+  if (r >= LAYER_TOP[1]) return 1;
+  return 0;
+}
+const DIRT = [
+  ['#c98a3c','#ab7029','#8a5620'],
+  ['#d4553a','#b8442c','#8f321f'],
+  ['#3f8fd8','#2f74b8','#1f5590'],
+  ['#5fa83f','#478b2c','#31661d']
+];
+const C = {
+  ink:'#ffeede', dim:'#bb9469', amber:'#ffb03a', red:'#ff4a3d',
+  white:'#ffffff', sky:'#141a36', skyLite:'#232c58',
+  rock:'#9aa3b2', rockLite:'#cfd6e2', rockDark:'#5b6474'
+};
+
+function makeSprite(rows, pal){
+  const w = rows[0].length, h = rows.length;
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d');
+  for (let y=0;y<h;y++) for (let x=0;x<w;x++){
+    const col = pal[rows[y][x]];
+    if (col){ g.fillStyle = col; g.fillRect(x,y,1,1); }
+  }
+  return c;
+}
+const PAL_HERO = { K:'#0a0a12', W:'#ffffff', B:'#2f6ce8', S:'#f6bd8c', R:'#ff4a3d' };
+const PAL_POOKA = { K:'#0a0a12', R:'#ee3126', D:'#9c1d16', W:'#ffffff', Y:'#ffd23f' };
+const PAL_FYGAR = { K:'#0a0a12', G:'#4ec93a', D:'#2c7a20', W:'#ffffff', Y:'#ffd23f', R:'#ff4a3d' };
+
+const HERO_SIDE_A = [
+  '................',
+  '.....KKKKKK.....',
+  '....KWWWWWWK....',
+  '....KWBBBBWK....',
+  '...KWSSSSSSK....',
+  '...KWSKSSSSK....',
+  '...KKSSSSSKK....',
+  '..KWWWWWWWWK....',
+  '..KWWWWWWWWK....',
+  '..KWWBBBBWWK....',
+  '...KBBBBBBK.....',
+  '...KBBKKBBK.....',
+  '...KBK..KBK.....',
+  '...KBK..KBK.....',
+  '..KKKK..KKKK....',
+  '..KWWK..KWWK....'
+];
+const HERO_SIDE_B = [
+  '................',
+  '.....KKKKKK.....',
+  '....KWWWWWWK....',
+  '....KWBBBBWK....',
+  '...KWSSSSSSK....',
+  '...KWSKSSSSK....',
+  '...KKSSSSSKK....',
+  '..KWWWWWWWWK....',
+  '..KWWWWWWWWK....',
+  '..KWWBBBBWWK....',
+  '...KBBBBBBK.....',
+  '..KBBKKKBBK.....',
+  '..KBK...KBBK....',
+  '.KKBK....KBBK...',
+  '.KWWK....KKBKK..',
+  '.KKKK.....KWWK..'
+];
+const HERO_DOWN_A = [
+  '................',
+  '.....KKKKKK.....',
+  '....KWWWWWWK....',
+  '....KWBBBBWK....',
+  '...KWSSSSSSWK...',
+  '...KWSKSSKSWK...',
+  '...KWSSSSSSWK...',
+  '...KKSSRRSSKK...',
+  '..KWWWWWWWWWWK..',
+  '..KWWWWWWWWWWK..',
+  '..KWWBBBBBBWWK..',
+  '...KBBBBBBBBK...',
+  '...KBBKKKKBBK...',
+  '...KBK....KBK...',
+  '..KKKK....KKKK..',
+  '..KWWK....KWWK..'
+];
+const HERO_DOWN_B = [
+  '................',
+  '.....KKKKKK.....',
+  '....KWWWWWWK....',
+  '....KWBBBBWK....',
+  '...KWSSSSSSWK...',
+  '...KWSKSSKSWK...',
+  '...KWSSSSSSWK...',
+  '...KKSSRRSSKK...',
+  '..KWWWWWWWWWWK..',
+  '..KWWWWWWWWWWK..',
+  '..KWWBBBBBBWWK..',
+  '...KBBBBBBBBK...',
+  '..KBBBKKKKBBBK..',
+  '..KBK......KBK..',
+  '.KKKK......KKKK.',
+  '.KWWK......KWWK.'
+];
+const HERO_UP_A = [
+  '................',
+  '.....KKKKKK.....',
+  '....KWWWWWWK....',
+  '....KWWWWWWK....',
+  '...KWBBBBBBWK...',
+  '...KWBBBBBBWK...',
+  '...KWBBBBBBWK...',
+  '...KKBBBBBBKK...',
+  '..KWWWWWWWWWWK..',
+  '..KWWWWWWWWWWK..',
+  '..KWWBBBBBBWWK..',
+  '...KBBBBBBBBK...',
+  '...KBBKKKKBBK...',
+  '...KBK....KBK...',
+  '..KKKK....KKKK..',
+  '..KWWK....KWWK..'
+];
+const HERO_UP_B = [
+  '................',
+  '.....KKKKKK.....',
+  '....KWWWWWWK....',
+  '....KWWWWWWK....',
+  '...KWBBBBBBWK...',
+  '...KWBBBBBBWK...',
+  '...KWBBBBBBWK...',
+  '...KKBBBBBBKK...',
+  '..KWWWWWWWWWWK..',
+  '..KWWWWWWWWWWK..',
+  '..KWWBBBBBBWWK..',
+  '...KBBBBBBBBK...',
+  '..KBBBKKKKBBBK..',
+  '..KBK......KBK..',
+  '.KKKK......KKKK.',
+  '.KWWK......KWWK.'
+];
+const HERO_SQUASH = [
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '.KKKKKKKKKKKKKK.',
+  '.KWWWWWWWWWWWWK.',
+  '.KWSSKWWWWKSSWK.',
+  '.KWSSSWWWWSSSWK.',
+  '.KBBBBBBBBBBBBK.',
+  '.KKBBKKKKKKBBKK.',
+  '..KKK......KKK..',
+  '................'
+];
+const HERO_HURT = [
+  '................',
+  '....K.KKKK.K....',
+  '...K.KWWWWK.K...',
+  '....KWSSSSWK....',
+  '...KWSKSSKSWK...',
+  '...KWSSSSSSWK...',
+  '...KKSSKKSSKK...',
+  '..KWWWWWWWWWWK..',
+  '..KWWWWWWWWWWK..',
+  '..KWWBBBBBBWWK..',
+  '..KBBBBBBBBBBK..',
+  '.KBBKKKKKKKKBBK.',
+  '.KBK........KBK.',
+  'KKKK........KKKK',
+  'KWWK........KWWK',
+  '................'
+];
+const POOKA_A = [
+  '................',
+  '.....RRRRRR.....',
+  '...RRRRRRRRRR...',
+  '..RRRRRRRRRRRR..',
+  '..RWWWWWWWWWWR..',
+  '.RRWWKKWWKKWWRR.',
+  '.RRWWKKWWKKWWRR.',
+  '.RRWWWWWWWWWWRR.',
+  '.RRRRRRRRRRRRRR.',
+  '.RDRRRRRRRRRRDR.',
+  '..RRRRRRRRRRRR..',
+  '..RRDRRRRRRDRR..',
+  '...RRRRRRRRRR...',
+  '....RR....RR....',
+  '...YYYY..YYYY...',
+  '................'
+];
+const POOKA_B = [
+  '................',
+  '.....RRRRRR.....',
+  '...RRRRRRRRRR...',
+  '..RRRRRRRRRRRR..',
+  '..RWWWWWWWWWWR..',
+  '.RRWWKKWWKKWWRR.',
+  '.RRWWKKWWKKWWRR.',
+  '.RRWWWWWWWWWWRR.',
+  '.RRRRRRRRRRRRRR.',
+  '.RDRRRRRRRRRRDR.',
+  '..RRRRRRRRRRRR..',
+  '..RRDRRRRRRDRR..',
+  '...RRRRRRRRRR...',
+  '...RR......RR...',
+  '..YYYY....YYYY..',
+  '................'
+];
+const POOKA_EYES = [
+  '................',
+  '................',
+  '................',
+  '................',
+  '..WWWWWWWWWWWW..',
+  '.WWWKKWWWWKKWWW.',
+  '.WWWKKWWWWKKWWW.',
+  '..WWWWWWWWWWWW..',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................'
+];
+const FYGAR_A = [
+  '................',
+  '.......GGGG.....',
+  '..G...GGGGGG....',
+  '..GG.GGWWKGGG...',
+  '..GGGGGWWKGGGG..',
+  '..GGGGGGGGGGKK..',
+  '.GGGGGGGGGGGG...',
+  '.GGGGGGGGGGG....',
+  'GGGGGGGGGGG.....',
+  '.DGGGGGGGGG.....',
+  '..GGGGGGGGG.....',
+  '..GG.GGG.GG.....',
+  '..GG.GGG.GG.....',
+  '..YY.....YY.....',
+  '.YYYY...YYYY....',
+  '................'
+];
+const FYGAR_B = [
+  '................',
+  '.......GGGG.....',
+  '..G...GGGGGG....',
+  '..GG.GGWWKGGG...',
+  '.GGGGGGWWKGGGG..',
+  '.GGGGGGGGGGGKK..',
+  'GGGGGGGGGGGG....',
+  '.GGGGGGGGGGG....',
+  '.GGGGGGGGGG.....',
+  '.DGGGGGGGGG.....',
+  '..GGGGGGGGG.....',
+  '...GGGGGGG......',
+  '..GG.GGG.GG.....',
+  '.YY.......YY....',
+  'YYYY.....YYYY...',
+  '................'
+];
+const FYGAR_FIRE = [
+  '................',
+  '.......GGGG.....',
+  '..G...GGGGGG....',
+  '..GG.GGWWKGGGG..',
+  '..GGGGGWWKGGGKK.',
+  '..GGGGGGGGKRRR..',
+  '.GGGGGGGGGKRR...',
+  '.GGGGGGGGGGKK...',
+  'GGGGGGGGGGG.....',
+  '.DGGGGGGGGG.....',
+  '..GGGGGGGGG.....',
+  '..GG.GGG.GG.....',
+  '..GG.GGG.GG.....',
+  '..YY.....YY.....',
+  '.YYYY...YYYY....',
+  '................'
+];
+const FYGAR_EYES = [
+  '................',
+  '................',
+  '................',
+  '................',
+  '....WWWKWWWK....',
+  '....WWWKWWWK....',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................'
+];
+
+const SP = {
+  heroSide:[makeSprite(HERO_SIDE_A,PAL_HERO), makeSprite(HERO_SIDE_B,PAL_HERO)],
+  heroDown:[makeSprite(HERO_DOWN_A,PAL_HERO), makeSprite(HERO_DOWN_B,PAL_HERO)],
+  heroUp:[makeSprite(HERO_UP_A,PAL_HERO), makeSprite(HERO_UP_B,PAL_HERO)],
+  heroSquash: makeSprite(HERO_SQUASH,PAL_HERO),
+  heroHurt: makeSprite(HERO_HURT,PAL_HERO),
+  pooka:[makeSprite(POOKA_A,PAL_POOKA), makeSprite(POOKA_B,PAL_POOKA)],
+  pookaEyes: makeSprite(POOKA_EYES,PAL_POOKA),
+  fygar:[makeSprite(FYGAR_A,PAL_FYGAR), makeSprite(FYGAR_B,PAL_FYGAR)],
+  fygarFire: makeSprite(FYGAR_FIRE,PAL_FYGAR),
+  fygarEyes: makeSprite(FYGAR_EYES,PAL_FYGAR)
+};
+
+/* ---------- bonus vegetables ---------- */
+const VEG_PAL = { K:'#0a0a12', O:'#ff8a1e', G:'#4ec93a', W:'#fff4e2', R:'#ee3126', P:'#9c4ddb', Y:'#ffd23f', D:'#2c7a20' };
+const VEGS = [
+  { name:'CARROT', value:400, rows:[
+    '................','.......G.G......','......GGGGG.....','.....GG.G.GG....',
+    '.......GGG......','......OOOOO.....','.....OOOOOOO....','.....OOWOOOO....',
+    '......OOOOO.....','......OOOOO.....','.......OOO......','.......OOO......',
+    '........O.......','........O.......','................','................'] },
+  { name:'TURNIP', value:600, rows:[
+    '................','.....GG..GG.....','....GGGGGGGG....','.....GG..GG.....',
+    '.......WW.......','.....WWWWWW.....','....WWWWWWWW....','...WWWWWWWWWW...',
+    '...WWWWWWWWWW...','...WWWWWWWWWW...','....WWWWWWWW....','.....WWWWWW.....',
+    '......WWWW......','.......WW.......','................','................'] },
+  { name:'MUSHROOM', value:800, rows:[
+    '................','.....RRRRRR.....','...RRRRRRRRRR...','..RRWRRRRWRRRR..',
+    '..RRRRRRRRRRRR..','..RRRWRRRRRWRR..','..RRRRRRRRRRRR..','...WWWWWWWWWW...',
+    '.....WWWWWW.....','.....WWWWWW.....','.....WWWWWW.....','.....WWWWWW.....',
+    '....WWWWWWWW....','................','................','................'] },
+  { name:'CUCUMBER', value:1000, rows:[
+    '................','..........GG....','.........GDG....','........GGGG....',
+    '.......GGGG.....','......GGGGG.....','.....GGDGGG.....','....GGGGGG......',
+    '....GGGGG.......','...GGDGGG.......','...GGGGG........','..GGGGG.........',
+    '..GGGG..........','...GG...........','................','................'] },
+  { name:'EGGPLANT', value:2000, rows:[
+    '................','.......GG.......','......GGGG......','.....GGPPGG.....',
+    '....PPPPPPPP....','...PPPPPPPPPP...','...PPWPPPPPPP...','..PPPWPPPPPPPP..',
+    '..PPPPPPPPPPPP..','..PPPPPPPPPPPP..','...PPPPPPPPPP...','....PPPPPPPP....',
+    '.....PPPPPP.....','......PPPP......','................','................'] },
+  { name:'TOMATO', value:3000, rows:[
+    '................','.....G.GG.G.....','......GGGG......','....RRRGGRRR....',
+    '...RRRRRRRRRR...','..RRWRRRRRRRRR..','..RRWRRRRRRRRR..','..RRRRRRRRRRRR..',
+    '..RRRRRRRRRRRR..','..RRRRRRRRRRRR..','...RRRRRRRRRR...','....RRRRRRRR....',
+    '.....RRRRRR.....','................','................','................'] },
+  { name:'PINEAPPLE', value:4000, rows:[
+    '................','.......G........','....G.GGG.G.....','.....GGGGGG.....',
+    '......GGGG......','.....YYYYYY.....','....YOYYOYYO....','....YYOYYOYY....',
+    '...YOYYOYYOY....','...YYOYYOYYO....','....YOYYOYYO....','....YYOYYOYY....',
+    '.....YYYYYY.....','......YYYY......','................','................'] }
+];
+const VEG_SP = VEGS.map(function(v){ return makeSprite(v.rows, VEG_PAL); });
+
+/* ---------- sound ---------- */
+const Sound = (function(){
+  let ac = null, on = true, master = null;
+  function ready(){
+    if (!on) return false;
+    if (!ac){
+      try {
+        ac = new (window.AudioContext||window.webkitAudioContext)();
+        master = ac.createGain(); master.gain.value = 0.3; master.connect(ac.destination);
+      } catch(e){ on = false; return false; }
+    }
+    if (ac.state === 'suspended') ac.resume();
+    return true;
+  }
+  function tone(freq, dur, type, vol, slideTo){
+    if (!ready()) return;
+    const t = ac.currentTime;
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = type || 'square';
+    o.frequency.setValueAtTime(freq, t);
+    if (slideTo) o.frequency.exponentialRampToValueAtTime(Math.max(30, slideTo), t + dur);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol == null ? 0.5 : vol, t + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(master);
+    o.start(t); o.stop(t + dur + 0.02);
+  }
+  function noise(dur, vol, hz){
+    if (!ready()) return;
+    const t = ac.currentTime, n = Math.floor(ac.sampleRate * dur);
+    const buf = ac.createBuffer(1, n, ac.sampleRate), d = buf.getChannelData(0);
+    for (let i=0;i<n;i++) d[i] = (Math.random()*2-1) * (1 - i/n);
+    const s = ac.createBufferSource(); s.buffer = buf;
+    const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = hz || 900;
+    const g = ac.createGain(); g.gain.value = vol == null ? 0.4 : vol;
+    s.connect(f); f.connect(g); g.connect(master);
+    s.start(t);
+  }
+  function seq(list, gap, dur){
+    list.forEach(function(f,i){ setTimeout(function(){ tone(f, dur||0.14, 'square', 0.3); }, i*gap); });
+  }
+  return {
+    toggle(){ on = !on; if (on) ready(); return on; },
+    isOn(){ return on; },
+    wake(){ ready(); },
+    step(freq){ tone(freq, 0.08, 'square', 0.2); },
+    pump(){ tone(190, 0.12, 'sawtooth', 0.28, 540); },
+    inflate(stage){ tone(240 + stage*90, 0.16, 'square', 0.26, 420 + stage*130); },
+    pop(){ noise(0.24, 0.5, 2600); tone(520, 0.16, 'square', 0.28, 90); },
+    deflate(){ tone(430, 0.18, 'sine', 0.18, 150); },
+    rock(){ tone(96, 0.45, 'sawtooth', 0.2, 44); },
+    crush(){ noise(0.4, 0.55, 480); tone(70, 0.4, 'square', 0.28, 40); },
+    fire(){ noise(0.45, 0.32, 1700); },
+    veg(){ seq([660,880,1320], 70, 0.12); },
+    die(){ seq([440,392,330,262,196,131], 130, 0.18); },
+    clear(){ seq([523,659,784,1047], 110, 0.14); },
+    extend(){ seq([784,988,1319], 60, 0.1); },
+    coin(){ tone(988, 0.08, 'square', 0.3); setTimeout(function(){ tone(1319, 0.16, 'square', 0.3); }, 80); }
+  };
+})();
+
+/* ---------- world state ---------- */
+const dug = new Uint8Array(COLS * ROWS);
+let dirtCv = document.createElement('canvas');
+dirtCv.width = W; dirtCv.height = FH;
+let dirtCtx = dirtCv.getContext('2d');
+
+let rocks = [], enemies = [], fx = [], veg = null;
+let hero = null;
+let score = 0, high = 0, lives = 3, level = 1, extendAt = 20000;
+let state = 'title', paused = false, stateT = 0;
+let rocksFallen = 0;
+
+try { high = parseInt(localStorage.getItem('digdug.high') || '0', 10) || 0; } catch(e){ high = 0; }
+function saveHigh(){ try { localStorage.setItem('digdug.high', String(high)); } catch(e){} }
+
+function inB(c,r){ return c>=0 && c<COLS && r>=0 && r<ROWS; }
+function isDug(c,r){ return inB(c,r) && dug[r*COLS+c] === 1; }
+function setDug(c,r){ if (inB(c,r)) dug[r*COLS+c] = 1; }
+function cxOf(c){ return c*CELL + CELL/2; }
+function cyOf(r){ return FY + r*CELL + CELL/2; }
+function colOf(x){ return Math.max(0, Math.min(COLS-1, Math.floor(x/CELL))); }
+function rowOf(y){ return Math.max(0, Math.min(ROWS-1, Math.floor((y-FY)/CELL))); }
+function clamp(v,a,b){ return v<a?a:(v>b?b:v); }
+function rnd(n){ return Math.floor(Math.random()*n); }
+
+function rockAt(c,r){
+  for (let i=0;i<rocks.length;i++){
+    const k = rocks[i];
+    if (k.gone) continue;
+    if (k.state === 'fall'){
+      /* a falling rock blocks the cell it is passing through */
+      if (k.c === c && rowOf(k.y) === r) return k;
+    } else if (k.c === c && k.r === r) return k;
+  }
+  return null;
+}
+function heroCanEnter(c,r){ return inB(c,r) && !rockAt(c,r); }
+function monsterCanEnter(c,r){ return inB(c,r) && isDug(c,r) && !rockAt(c,r); }
+
+/* ---------- dirt canvas ---------- */
+function paintDirt(){
+  const g = dirtCtx;
+  g.setTransform(1,0,0,1,0,0);
+  g.clearRect(0,0,W,FH);
+  for (let r=1;r<ROWS;r++){
+    const pal = DIRT[layerOfRow(r)];
+    const y = r*CELL;
+    g.fillStyle = pal[0];
+    g.fillRect(0, y, W, CELL);
+    /* banding so each stratum reads as packed earth rather than flat colour */
+    g.fillStyle = pal[1];
+    for (let i=0;i<3;i++) g.fillRect(0, y + 3 + i*5, W, 1);
+    g.fillStyle = pal[2];
+    for (let i=0;i<26;i++){
+      const px = rnd(W), py = y + rnd(CELL);
+      g.fillRect(px, py, 1 + rnd(2), 1);
+    }
+    g.fillStyle = pal[1];
+    for (let i=0;i<14;i++) g.fillRect(rnd(W), y + rnd(CELL), 1, 1);
+    if (r > 1 && layerOfRow(r) !== layerOfRow(r-1)){
+      g.fillStyle = 'rgba(0,0,0,.25)';
+      g.fillRect(0, y, W, 2);
+    }
+  }
+}
+function carveCell(c,r){
+  if (!inB(c,r)) return;
+  const g = dirtCtx;
+  g.save();
+  g.globalCompositeOperation = 'destination-out';
+  const x = c*CELL, y = r*CELL;
+  g.beginPath();
+  if (g.roundRect) g.roundRect(x, y, CELL, CELL, 4);
+  else g.rect(x, y, CELL, CELL);
+  g.fill();
+  g.restore();
+}
+function carveDisc(x, y, rad){
+  const g = dirtCtx;
+  g.save();
+  g.globalCompositeOperation = 'destination-out';
+  g.beginPath();
+  g.arc(x, y - FY, rad, 0, Math.PI*2);
+  g.fill();
+  g.restore();
+}
+/* digging is what movement does: claim the cell and erase a smooth bore */
+function digAt(x, y){
+  const c = colOf(x), r = rowOf(y);
+  if (!isDug(c,r)){ setDug(c,r); carveCell(c,r); }
+  carveDisc(x, y, 7);
+}
+
+/* ---------- entities ---------- */
+function makeHero(c, r){
+  return { x:cxOf(c), y:cyOf(r), dir:RIGHT, homeC:c, homeR:r, anim:0, frame:0,
+           moving:false, dead:false, deadT:0, cause:'', harpoon:null, hooked:null, invT:0 };
+}
+function makeMonster(type, c, r){
+  return { type:type, x:cxOf(c), y:cyOf(r), homeC:c, homeR:r,
+           dir:(Math.random()<0.5?LEFT:RIGHT), state:'walk', anim:0, frame:0,
+           inflate:0, deflateT:0, ghostT:5+Math.random()*6, fireT:3+Math.random()*5,
+           firing:0, fireDir:RIGHT, gx:0, gy:0, dead:false, deadT:0, escapeT:0, angry:false };
+}
+function makeRock(c, r){ return { c:c, r:r, y:cyOf(r), state:'idle', t:0, gone:false, killed:0 }; }
+
+function digCell(c, r){ if (inB(c,r)){ setDug(c,r); carveCell(c,r); } }
+
+function buildLevel(n){
+  dug.fill(0);
+  paintDirt();
+  rocks = []; enemies = []; fx = []; veg = null; rocksFallen = 0;
+  for (let c=0;c<COLS;c++) digCell(c, 0);            /* open sky along the surface */
+
+  const startC = 6, startR = 2;
+  for (let r=0;r<=startR;r++) digCell(startC, r);    /* the shaft you drop in through */
+  digCell(startC-1, startR); digCell(startC+1, startR);
+
+  /* a handful of pre-cut corridors, deeper ones on later rounds */
+  const pool = [3,5,7,9,11,13];
+  for (let i=pool.length-1;i>0;i--){ const j = rnd(i+1); const t = pool[i]; pool[i] = pool[j]; pool[j] = t; }
+  const nCorr = Math.min(5, 3 + Math.floor((n-1)/3));
+  const corr = pool.slice(0, nCorr);
+  corr.forEach(function(r){
+    const len = 4 + rnd(5);
+    const c0 = clamp(rnd(COLS - len), 0, COLS - len);
+    for (let c=c0;c<c0+len;c++) digCell(c, r);
+  });
+  /* verticals so the corridors connect into something a monster can patrol */
+  for (let i=0;i<2 + (n>3?1:0);i++){
+    const c = 1 + rnd(COLS-2);
+    const r0 = 3 + rnd(4), r1 = r0 + 3 + rnd(6);
+    for (let r=r0;r<=Math.min(ROWS-1,r1);r++) digCell(c, r);
+  }
+
+  hero = makeHero(startC, startR);
+
+  /* monsters go in dug pockets, never on the player's doorstep */
+  const spots = [];
+  for (let r=3;r<ROWS;r++) for (let c=0;c<COLS;c++){
+    if (!isDug(c,r)) continue;
+    if (Math.abs(c-startC) + Math.abs(r-startR) < 5) continue;
+    spots.push([c,r]);
+  }
+  for (let i=spots.length-1;i>0;i--){ const j = rnd(i+1); const t = spots[i]; spots[i] = spots[j]; spots[j] = t; }
+  const total = Math.min(8, 4 + Math.floor((n-1)/2));
+  const fygars = Math.min(total-1, 1 + Math.floor((n-1)/2));
+  for (let i=0;i<total;i++){
+    let s = spots[i];
+    if (!s){                                        /* thin layout: bore a pocket */
+      const c = rnd(COLS), r = 6 + rnd(ROWS-7);
+      digCell(c,r); digCell(c-1,r); s = [c,r];
+    }
+    enemies.push(makeMonster(i < fygars ? 'fygar' : 'pooka', s[0], s[1]));
+  }
+
+  /* boulders, sitting in solid earth beside a tunnel so they can be undermined */
+  const rockSpots = [];
+  for (let r=3;r<ROWS-1;r++) for (let c=0;c<COLS;c++){
+    if (isDug(c,r)) continue;
+    if (isDug(c, r+1)) continue;                    /* never start a boulder already unsupported */
+    if (!(isDug(c,r-1) || isDug(c-1,r) || isDug(c+1,r))) continue;
+    if (Math.abs(c-startC) + Math.abs(r-startR) < 4) continue;
+    rockSpots.push([c,r]);
+  }
+  for (let i=rockSpots.length-1;i>0;i--){ const j = rnd(i+1); const t = rockSpots[i]; rockSpots[i] = rockSpots[j]; rockSpots[j] = t; }
+  const nRocks = Math.min(rockSpots.length, Math.min(6, 3 + Math.floor(n/3)));
+  const used = [];
+  for (let i=0;i<rockSpots.length && used.length<nRocks;i++){
+    const s = rockSpots[i];
+    if (used.some(function(u){ return Math.abs(u[0]-s[0]) < 2 && Math.abs(u[1]-s[1]) < 2; })) continue;
+    used.push(s);
+    rocks.push(makeRock(s[0], s[1]));
+  }
+}
+
+function resetAfterDeath(){
+  hero = makeHero(hero.homeC, hero.homeR);
+  hero.invT = 1.6;
+  for (let r=0;r<=hero.homeR;r++) digCell(hero.homeC, r);
+  enemies.forEach(function(e){
+    if (e.dead) return;
+    e.x = cxOf(e.homeC); e.y = cyOf(e.homeR);
+    e.state = 'walk'; e.inflate = 0; e.firing = 0; e.escapeT = 0;
+    e.ghostT = 5 + Math.random()*5;
+    e.fireT = 4 + Math.random()*4;
+    digCell(e.homeC, e.homeR);
+  });
+}
+
+/* ---------- input ---------- */
+const KEYDIR = {
+  arrowright:RIGHT, arrowdown:DOWN, arrowleft:LEFT, arrowup:UP,
+  d:RIGHT, s:DOWN, a:LEFT, w:UP
+};
+let dirStack = [];
+let fireDown = false, fireEdge = false, fireHold = 0;
+
+function pressDir(dir){
+  dirStack = [dir].concat(dirStack.filter(function(d){ return d !== dir; }));
+}
+function releaseDir(dir){
+  dirStack = dirStack.filter(function(d){ return d !== dir; });
+}
+function pressFire(){
+  if (!fireDown){ fireEdge = true; fireHold = 0; }
+  fireDown = true;
+}
+function releaseFire(){ fireDown = false; fireHold = 0; }
+
+window.addEventListener('keydown', function(ev){
+  const k = ev.key.length === 1 ? ev.key.toLowerCase() : ev.key.toLowerCase();
+  if (k in KEYDIR){ pressDir(KEYDIR[k]); ev.preventDefault(); return; }
+  if (k === ' ' || k === 'spacebar' || k === 'z' || k === 'x' || k === 'enter'){
+    ev.preventDefault();
+    Sound.wake();
+    if (state === 'title' || state === 'over'){ Sound.coin(); newGame(); return; }
+    pressFire();
+    return;
+  }
+  if (k === 'p'){ if (state === 'play') paused = !paused; return; }
+  if (k === 'm'){ Sound.toggle(); return; }
+  if (k === 'r'){ Sound.coin(); newGame(); return; }
+});
+window.addEventListener('keyup', function(ev){
+  const k = ev.key.toLowerCase();
+  if (k in KEYDIR){ releaseDir(KEYDIR[k]); return; }
+  if (k === ' ' || k === 'spacebar' || k === 'z' || k === 'x' || k === 'enter') releaseFire();
+});
+
+(function bindPad(){
+  const pad = document.getElementById('pad');
+  const map = { up:UP, down:DOWN, left:LEFT, right:RIGHT };
+  Array.prototype.forEach.call(pad.querySelectorAll('button'), function(b){
+    const k = b.getAttribute('data-k');
+    b.addEventListener('pointerdown', function(ev){
+      ev.preventDefault(); b.setPointerCapture(ev.pointerId); Sound.wake();
+      if (state === 'title' || state === 'over'){ Sound.coin(); newGame(); return; }
+      if (k === 'fire') pressFire(); else pressDir(map[k]);
+    });
+    const up = function(ev){ ev.preventDefault(); if (k === 'fire') releaseFire(); else releaseDir(map[k]); };
+    b.addEventListener('pointerup', up);
+    b.addEventListener('pointercancel', up);
+    b.addEventListener('pointerleave', up);
+  });
+})();
+cv.addEventListener('pointerdown', function(){
+  Sound.wake();
+  if (state === 'title' || state === 'over'){ Sound.coin(); newGame(); }
+});
+
+/* ---------- grid movement ---------- */
+/* moves along one axis, snapping the other to the lane centre like the arcade does */
+function moveAxis(e, dir, dist, canEnter){
+  const c = colOf(e.x), r = rowOf(e.y);
+  const ccx = cxOf(c), ccy = cyOf(r);
+  let moved = false;
+  if (dir === LEFT || dir === RIGHT){
+    if (e.y !== ccy){
+      const d = Math.sign(ccy - e.y);
+      e.y += Math.min(dist, Math.abs(ccy - e.y)) * d;
+    }
+    let nx = e.x + DX[dir]*dist;
+    if (!canEnter(c + DX[dir], r)) nx = dir === RIGHT ? Math.min(nx, ccx) : Math.max(nx, ccx);
+    nx = clamp(nx, CELL/2, W - CELL/2);
+    moved = Math.abs(nx - e.x) > 0.001; e.x = nx;
+  } else {
+    if (e.x !== ccx){
+      const d = Math.sign(ccx - e.x);
+      e.x += Math.min(dist, Math.abs(ccx - e.x)) * d;
+    }
+    let ny = e.y + DY[dir]*dist;
+    if (!canEnter(c, r + DY[dir])) ny = dir === DOWN ? Math.min(ny, ccy) : Math.max(ny, ccy);
+    ny = clamp(ny, FY + CELL/2, FY + FH - CELL/2);
+    moved = Math.abs(ny - e.y) > 0.001; e.y = ny;
+  }
+  return moved;
+}
+function centred(e){
+  return Math.abs(e.x - cxOf(colOf(e.x))) < 1.2 && Math.abs(e.y - cyOf(rowOf(e.y))) < 1.2;
+}
+
+/* ---------- scoring / effects ---------- */
+const POOKA_SCORE = [200, 300, 400, 500];
+const FYGAR_SCORE = [400, 600, 800, 1000];
+const ROCK_SCORE  = [1000, 2500, 4000, 6000, 8000, 10000];
+
+function addScore(n){
+  score += n;
+  if (score > high){ high = score; saveHigh(); }
+  if (score >= extendAt){ lives++; extendAt += 50000; Sound.extend(); }
+}
+function popText(x, y, text, col){
+  fx.push({ kind:'text', x:x, y:y, text:String(text), col:col || C.white, t:0, life:1.1 });
+}
+function burst(x, y, col, n){
+  for (let i=0;i<(n||10);i++){
+    const a = Math.random()*Math.PI*2, s = 30 + Math.random()*70;
+    fx.push({ kind:'bit', x:x, y:y, vx:Math.cos(a)*s, vy:Math.sin(a)*s - 20,
+              col:col, t:0, life:0.5 + Math.random()*0.3 });
+  }
+}
+function updateFx(dt){
+  for (let i=fx.length-1;i>=0;i--){
+    const f = fx[i];
+    f.t += dt;
+    if (f.kind === 'bit'){ f.x += f.vx*dt; f.y += f.vy*dt; f.vy += 260*dt; }
+    else f.y -= 14*dt;
+    if (f.t >= f.life) fx.splice(i,1);
+  }
+}
+
+/* ---------- hero ---------- */
+const HERO_SPD = 54;
+const HARPOON_SPD = 220, HARPOON_MAX = 34;
+
+function killHero(cause){
+  if (hero.dead || hero.invT > 0 || state !== 'play') return;
+  hero.dead = true; hero.deadT = 0; hero.cause = cause;
+  hero.harpoon = null;
+  if (hero.hooked){ detachHook(hero.hooked); hero.hooked = null; }
+  state = 'dying'; stateT = 0;
+  Sound.die();
+}
+function detachHook(m){
+  /* letting go leaves it swollen and stuck until it wheezes back down to size */
+  if (!m) return;
+  m.deflateT = 0;
+  m.stun = 0.4;
+}
+function popMonster(m){
+  const lay = layerOfRow(rowOf(m.y));
+  let pts = m.type === 'fygar' ? FYGAR_SCORE[lay] : POOKA_SCORE[lay];
+  /* a Fygar speared from above or below is worth double, as in the arcade */
+  if (m.type === 'fygar' && (hero.dir === UP || hero.dir === DOWN)) pts *= 2;
+  m.dead = true; m.state = 'popped'; m.deadT = 0;
+  addScore(pts);
+  popText(m.x, m.y - 6, pts, m.type === 'fygar' ? '#8ef07a' : '#ff9a90');
+  burst(m.x, m.y, m.type === 'fygar' ? '#4ec93a' : '#ee3126', 12);
+  Sound.pop();
+}
+
+function fireHarpoon(){
+  if (hero.harpoon || hero.hooked) return;
+  hero.harpoon = { dir:hero.dir, len:2, t:0, back:false };
+  Sound.pump();
+}
+function updateHarpoon(dt){
+  const h = hero.harpoon;
+  if (!h) return;
+  if (!h.back){
+    h.len += HARPOON_SPD*dt;
+    /* the pump only travels down open tunnel, and stops dead against a boulder */
+    const tipC = colOf(hero.x + DX[h.dir]*h.len), tipR = rowOf(hero.y + DY[h.dir]*h.len);
+    if (!isDug(tipC, tipR) || rockAt(tipC, tipR)) h.back = true;
+    if (h.len >= HARPOON_MAX) h.back = true;
+    const tx = hero.x + DX[h.dir]*h.len, ty = hero.y + DY[h.dir]*h.len;
+    for (let i=0;i<enemies.length;i++){
+      const m = enemies[i];
+      if (m.dead || m.state === 'ghost' || m.state === 'escape') continue;
+      if (Math.abs(tx - m.x) < 9 && Math.abs(ty - m.y) < 9){
+        m.state = 'pumped'; m.inflate = Math.min(4, Math.max(1, m.inflate + 1));
+        m.deflateT = 0; m.firing = 0;
+        hero.hooked = m; hero.harpoon = null;
+        Sound.inflate(m.inflate);
+        if (m.inflate >= 4){ popMonster(m); hero.hooked = null; }
+        return;
+      }
+    }
+  } else {
+    h.len -= HARPOON_SPD*1.6*dt;
+    if (h.len <= 0) hero.harpoon = null;
+  }
+}
+function updateHero(dt){
+  if (hero.invT > 0) hero.invT -= dt;
+  const want = dirStack.length ? dirStack[0] : -1;
+
+  if (hero.hooked){
+    const m = hero.hooked;
+    if (m.dead || m.state !== 'pumped'){ hero.hooked = null; }
+    else if (want >= 0){ detachHook(m); hero.hooked = null; }        /* walking off lets it go */
+    else {
+      if (fireEdge || (fireDown && fireHold > 0.4)){
+        if (fireDown && fireHold > 0.4) fireHold = 0.15;
+        m.inflate++; m.deflateT = 0;
+        Sound.inflate(m.inflate);
+        if (m.inflate >= 4){ popMonster(m); hero.hooked = null; }
+      }
+      hero.moving = false;
+      fireEdge = false;
+      return;
+    }
+  }
+
+  if (want >= 0){
+    hero.dir = want;
+    const moved = moveAxis(hero, want, HERO_SPD*dt, heroCanEnter);
+    hero.moving = moved;
+    if (moved){
+      digAt(hero.x, hero.y);
+      hero.anim += dt;
+      if (hero.anim > 0.11){ hero.anim = 0; hero.frame ^= 1; }
+    }
+  } else hero.moving = false;
+
+  if (fireEdge) fireHarpoon();
+  fireEdge = false;
+  updateHarpoon(dt);
+}
+
+/* ---------- monsters ---------- */
+function aliveCount(){
+  let n = 0;
+  for (let i=0;i<enemies.length;i++) if (!enemies[i].dead) n++;
+  return n;
+}
+function monsterSpeed(m){
+  let s = 24 + Math.min(15, (level-1)*1.4);
+  const alive = aliveCount();
+  if (alive === 1) s *= 1.55; else if (alive === 2) s *= 1.2;
+  if (rowOf(m.y) <= 2) s *= 1.3;              /* they sprint once they reach daylight */
+  return s;
+}
+function chooseDir(m){
+  const c = colOf(m.x), r = rowOf(m.y);
+  const opts = [];
+  for (let d=0;d<4;d++) if (monsterCanEnter(c + DX[d], r + DY[d])) opts.push(d);
+  if (!opts.length) return -1;
+  const back = (m.dir + 2) % 4;
+  const fwd = opts.filter(function(d){ return d !== back; });
+  const pool = fwd.length ? fwd : opts;
+  if (Math.random() < 0.72){
+    let best = pool[0], bd = Infinity;
+    for (let i=0;i<pool.length;i++){
+      const d = pool[i];
+      const dd = Math.abs(cxOf(c+DX[d]) - hero.x) + Math.abs(cyOf(r+DY[d]) - hero.y);
+      if (dd < bd){ bd = dd; best = d; }
+    }
+    return best;
+  }
+  return pool[rnd(pool.length)];
+}
+function aimGhost(m, tc, tr){
+  const c = colOf(m.x), r = rowOf(m.y);
+  const nc = clamp(c + Math.sign(tc - c), 0, COLS-1);
+  const nr = clamp(r + Math.sign(tr - r), 0, ROWS-1);
+  m.gx = cxOf(nc); m.gy = cyOf(nr);
+}
+function ghostMove(m, dt, spd){
+  const dx = m.gx - m.x, dy = m.gy - m.y;
+  const dist = Math.hypot(dx, dy);
+  if (dist <= spd*dt){ m.x = m.gx; m.y = m.gy; return true; }
+  m.x += dx/dist * spd*dt; m.y += dy/dist * spd*dt;
+  return false;
+}
+function flameCells(m){
+  const c = colOf(m.x), r = rowOf(m.y);
+  let n = 0;
+  for (let i=1;i<=3;i++){
+    const cc = c + DX[m.fireDir]*i;
+    if (!isDug(cc, r) || rockAt(cc, r)) break;
+    n++;
+  }
+  return n;
+}
+function updateMonster(m, dt){
+  if (m.dead){
+    if (m.state === 'popped' || m.state === 'crushed'){ m.deadT += dt; }
+    return;
+  }
+  m.anim += dt;
+  if (m.anim > 0.18){ m.anim = 0; m.frame ^= 1; }
+
+  if (m.state === 'pumped'){
+    m.deflateT += dt;
+    const hold = (hero.hooked === m) ? 1.7 : 0.85;
+    if (m.deflateT > hold){
+      m.deflateT = 0; m.inflate--;
+      Sound.deflate();
+      if (m.inflate <= 0){ m.state = 'walk'; m.stun = 0.35; if (hero.hooked === m) hero.hooked = null; }
+    }
+    return;
+  }
+  if (m.state === 'ghost' || m.state === 'escape'){
+    const spd = m.state === 'escape' ? 34 : (20 + Math.min(10, level));
+    if (m.state === 'escape' && rowOf(m.y) <= 0 && m.x <= CELL){
+      m.y -= 40*dt;
+      if (m.y < FY - 10){ m.dead = true; m.state = 'gone'; }
+      return;
+    }
+    if (ghostMove(m, dt, spd)){
+      const c = colOf(m.x), r = rowOf(m.y);
+      if (m.state === 'escape'){ aimGhost(m, 0, 0); }
+      else if (isDug(c,r) && !rockAt(c,r)){
+        m.state = 'walk'; m.stun = 0;
+        m.ghostT = 6 + Math.random()*6;
+        const d = chooseDir(m);
+        if (d >= 0) m.dir = d;
+      } else {
+        aimGhost(m, colOf(hero.x), rowOf(hero.y));
+      }
+    }
+    return;
+  }
+
+  /* --- walking --- */
+  if (m.stun > 0){ m.stun -= dt; return; }
+
+  if (m.type === 'fygar'){
+    if (m.firing){
+      m.fireTimer += dt;
+      if (m.firing === 1 && m.fireTimer > 0.5){ m.firing = 2; m.fireTimer = 0; Sound.fire(); }
+      else if (m.firing === 2 && m.fireTimer > 0.8){ m.firing = 0; m.fireT = 4 + Math.random()*3; }
+      return;
+    }
+    m.fireT -= dt;
+    const dx = hero.x - m.x;
+    const facing = (m.dir === RIGHT && dx > 0) || (m.dir === LEFT && dx < 0);
+    if (m.fireT <= 0 && !hero.dead && facing && Math.abs(hero.y - m.y) < 9 && Math.abs(dx) < CELL*3.6){
+      m.firing = 1; m.fireTimer = 0; m.fireDir = m.dir;
+      return;
+    }
+  }
+
+  m.ghostT -= dt;
+  const spd = monsterSpeed(m);
+  const moved = moveAxis(m, m.dir, spd*dt, monsterCanEnter);
+  if (!moved || (centred(m) && Math.random() < 2.4*dt)){
+    const d = chooseDir(m);
+    if (d >= 0) m.dir = d;
+    else m.ghostT = Math.min(m.ghostT, 0);      /* walled in: go through the dirt */
+  }
+  if (m.ghostT <= 0 && !hero.dead){
+    m.state = 'ghost';
+    aimGhost(m, colOf(hero.x), rowOf(hero.y));
+  }
+}
+function updateMonsters(dt){
+  let alive = 0, lastOne = null;
+  for (let i=0;i<enemies.length;i++){
+    const m = enemies[i];
+    updateMonster(m, dt);
+    if (!m.dead){ alive++; lastOne = m; }
+  }
+  /* the final survivor makes a run for the surface */
+  if (alive === 1 && lastOne && state === 'play'){
+    if (lastOne.state === 'walk' || lastOne.state === 'ghost'){
+      lastOne.escapeT += dt;
+      if (lastOne.escapeT > 9){ lastOne.state = 'escape'; aimGhost(lastOne, 0, 0); }
+    }
+  }
+  /* contact and fire damage */
+  if (!hero.dead && hero.invT <= 0){
+    for (let i=0;i<enemies.length;i++){
+      const m = enemies[i];
+      if (m.dead) continue;
+      if (m.state === 'walk' || m.state === 'ghost' || m.state === 'escape'){
+        if (Math.abs(m.x - hero.x) < 11 && Math.abs(m.y - hero.y) < 11){ killHero('monster'); break; }
+      }
+      if (m.type === 'fygar' && m.firing === 2){
+        const n = flameCells(m);
+        if (n > 0 && Math.abs(hero.y - m.y) < 10){
+          const a = m.x + DX[m.fireDir]*8, b = m.x + DX[m.fireDir]*(8 + n*CELL);
+          const lo = Math.min(a,b), hi = Math.max(a,b);
+          if (hero.x > lo - 6 && hero.x < hi + 6){ killHero('fire'); break; }
+        }
+      }
+    }
+  }
+}
+
+/* ---------- rocks ---------- */
+function updateRocks(dt){
+  for (let i=0;i<rocks.length;i++){
+    const k = rocks[i];
+    if (k.gone) continue;
+    if (k.state === 'idle'){
+      if (isDug(k.c, k.r + 1)){ k.state = 'wobble'; k.t = 0; }
+    } else if (k.state === 'wobble'){
+      k.t += dt;
+      if (k.t > 0.7){ k.state = 'fall'; k.vy = 0; k.killed = 0; digCell(k.c, k.r); Sound.rock(); }
+    } else if (k.state === 'fall'){
+      k.vy = Math.min(210, k.vy + 460*dt);
+      k.y += k.vy*dt;
+      const r = clamp(Math.floor((k.y - FY)/CELL), 0, ROWS-1);
+      k.r = r;
+      const rx = cxOf(k.c);
+      for (let j=0;j<enemies.length;j++){
+        const m = enemies[j];
+        if (m.dead || m.state === 'popped') continue;
+        if (Math.abs(m.x - rx) < 11 && Math.abs(m.y - k.y) < 13){
+          if (hero.hooked === m) hero.hooked = null;
+          m.dead = true; m.state = 'crushed'; m.deadT = 0;
+          k.killed++;
+          Sound.crush();
+        }
+      }
+      if (!hero.dead && Math.abs(hero.x - rx) < 10 && Math.abs(hero.y - k.y) < 13) killHero('rock');
+      const solidBelow = (r + 1 >= ROWS) || !isDug(k.c, r + 1);
+      if (solidBelow && k.y >= cyOf(r)){
+        k.y = cyOf(r); k.state = 'break'; k.t = 0;
+        rocksFallen++;
+        burst(rx, k.y, C.rock, 14);
+        Sound.crush();
+        if (k.killed > 0){
+          const pts = ROCK_SCORE[Math.min(k.killed - 1, ROCK_SCORE.length - 1)];
+          addScore(pts);
+          popText(rx, k.y - 10, pts, C.amber);
+        }
+        if (rocksFallen === 2 && !veg && state === 'play') spawnVeg();
+      }
+    } else if (k.state === 'break'){
+      k.t += dt;
+      if (k.t > 0.45) k.gone = true;
+    }
+  }
+}
+
+/* ---------- bonus vegetable ---------- */
+function spawnVeg(){
+  veg = { x:W/2, y:cyOf(6), idx:Math.min(level-1, VEGS.length-1), t:0, life:12 };
+  Sound.veg();
+}
+function updateVeg(dt){
+  if (!veg) return;
+  veg.t += dt;
+  if (veg.t > veg.life){ veg = null; return; }
+  if (!hero.dead && Math.abs(hero.x - veg.x) < 12 && Math.abs(hero.y - veg.y) < 12){
+    const v = VEGS[veg.idx];
+    addScore(v.value);
+    popText(veg.x, veg.y - 8, v.value, '#8ef07a');
+    burst(veg.x, veg.y, '#8ef07a', 10);
+    Sound.veg();
+    veg = null;
+  }
+}
+
+/* ---------- flow ---------- */
+const MELODY = [392,392,440,494,523,494,440,392,330,330,392,440,494,440,392,330];
+let mIdx = 0, mT = 0;
+
+function startLevel(){
+  buildLevel(level);
+  state = 'ready'; stateT = 0;
+  dirStack = []; fireDown = false; fireEdge = false;
+}
+function newGame(){
+  score = 0; lives = 3; level = 1; extendAt = 20000;
+  fx = [];
+  startLevel();
+}
+function update(dt){
+  stateT += dt;
+  if (fireDown) fireHold += dt;
+
+  if (state === 'ready'){
+    updateFx(dt);
+    if (stateT > 1.5){ state = 'play'; stateT = 0; }
+    return;
+  }
+  if (state === 'play'){
+    updateHero(dt);
+    updateMonsters(dt);
+    updateRocks(dt);
+    updateVeg(dt);
+    updateFx(dt);
+    if (hero.moving){
+      mT += dt;
+      if (mT > 0.13){ mT = 0; Sound.step(MELODY[mIdx % MELODY.length]); mIdx++; }
+    } else mT = 0.13;
+    if (aliveCount() === 0){ state = 'clear'; stateT = 0; Sound.clear(); }
+    return;
+  }
+  if (state === 'dying'){
+    hero.deadT += dt;
+    updateRocks(dt);
+    updateFx(dt);
+    if (stateT > 2.3){
+      lives--;
+      if (lives < 0){
+        state = 'over'; stateT = 0; saveHigh();
+        try { parent.postMessage({ type:'arcade:gameover', game:'dig-dug', score:score }, '*'); } catch(e){}
+      }
+      else { resetAfterDeath(); state = 'ready'; stateT = 0.9; }
+    }
+    return;
+  }
+  if (state === 'clear'){
+    updateFx(dt);
+    if (stateT > 2.2){ level++; startLevel(); }
+    return;
+  }
+  updateFx(dt);
+}
+
+/* ---------- drawing ---------- */
+const ROCK_ROWS = [
+  '................',
+  '.....KKKKKK.....',
+  '...KKWWWWWKK....',
+  '..KWWWWWWWWRK...',
+  '.KWWWWWWWWRRRK..',
+  '.KWWWWWWRRRRRK..',
+  'KWWWWWRRRRRRRRK.',
+  'KWWWRRRRRRRRRDK.',
+  'KWRRRRRRRRRRDDK.',
+  'KRRRRRRRRRRDDDK.',
+  'KRRRRRRRRRDDDDK.',
+  '.KRRRRRRRDDDDK..',
+  '.KRRRRRDDDDDDK..',
+  '..KRRDDDDDDDK...',
+  '...KKDDDDDKK....',
+  '.....KKKKKK.....'
+];
+const SP_ROCK = makeSprite(ROCK_ROWS, { K:'#0a0a12', W:'#e2e8f2', R:'#9aa3b2', D:'#5b6474' });
+
+function text(str, x, y, col, align){
+  ctx.font = '8px "Press Start 2P", "Courier New", monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillStyle = col || C.ink;
+  ctx.fillText(str, x, y);
+}
+function sprite(img, x, y, flip, scale, alpha){
+  const s = scale || 1;
+  const w = img.width*s, h = img.height*s;
+  ctx.save();
+  if (alpha != null) ctx.globalAlpha = alpha;
+  ctx.translate(Math.round(x), Math.round(y));
+  if (flip) ctx.scale(-1, 1);
+  ctx.drawImage(img, -w/2, -h/2, w, h);
+  ctx.restore();
+}
+
+function drawField(){
+  /* sky strip along the surface, then the black of hollowed-out earth */
+  const g = ctx.createLinearGradient(0, FY, 0, FY + CELL);
+  g.addColorStop(0, C.skyLite); g.addColorStop(1, C.sky);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, FY, W, CELL);
+  ctx.fillStyle = '#050406';
+  ctx.fillRect(0, FY + CELL, W, FH - CELL);
+  ctx.drawImage(dirtCv, 0, FY);
+}
+
+function drawRocks(){
+  for (let i=0;i<rocks.length;i++){
+    const k = rocks[i];
+    if (k.gone) continue;
+    const x = cxOf(k.c);
+    if (k.state === 'break'){
+      const p = k.t / 0.45;
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, 1 - p);
+      sprite(SP_ROCK, x - 7 - p*10, k.y + p*4, false, 0.6);
+      sprite(SP_ROCK, x + 7 + p*10, k.y + p*4, false, 0.6);
+      sprite(SP_ROCK, x, k.y - p*6, false, 0.5);
+      ctx.restore();
+      continue;
+    }
+    let dx = 0;
+    if (k.state === 'wobble') dx = Math.sin(k.t*38) * 1.6;
+    sprite(SP_ROCK, x + dx, k.state === 'fall' ? k.y : cyOf(k.r));
+  }
+}
+
+function drawVeg(){
+  if (!veg) return;
+  const blink = veg.t > veg.life - 3 && Math.floor(veg.t*6) % 2 === 0;
+  if (blink) return;
+  sprite(VEG_SP[veg.idx], veg.x, veg.y);
+}
+
+function drawFlame(m){
+  if (m.firing !== 2) return;
+  const n = flameCells(m);
+  if (n <= 0) return;
+  const dir = DX[m.fireDir];
+  const x0 = m.x + dir*7;
+  const len = n*CELL;
+  for (let i=0;i<len;i+=4){
+    const t = i/len;
+    const h = 11 - t*4 + Math.sin((i + performance.now()*0.05))*1.5;
+    ctx.fillStyle = t < 0.35 ? '#fff2b0' : (t < 0.7 ? '#ffb03a' : '#ff4a3d');
+    ctx.fillRect(Math.round(x0 + dir*i - (dir<0?4:0)), Math.round(m.y - h/2), 4, h);
+  }
+}
+
+function drawMonster(m){
+  if (m.state === 'popped'){
+    const p = m.deadT / 0.4;
+    if (p > 1) return;
+    ctx.save();
+    ctx.globalAlpha = 1 - p;
+    ctx.strokeStyle = m.type === 'fygar' ? '#8ef07a' : '#ff9a90';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(m.x, m.y, 6 + p*14, 0, Math.PI*2); ctx.stroke();
+    ctx.restore();
+    return;
+  }
+  const img = m.type === 'fygar'
+    ? (m.firing ? SP.fygarFire : SP.fygar[m.frame])
+    : SP.pooka[m.frame];
+  const flip = m.type === 'fygar' ? (m.dir === LEFT || (m.firing && m.fireDir === LEFT)) : false;
+  if (m.state === 'crushed'){
+    if (m.deadT > 1.1) return;
+    ctx.save();
+    ctx.globalAlpha = m.deadT > 0.8 ? 1 - (m.deadT-0.8)/0.3 : 1;
+    ctx.translate(Math.round(m.x), Math.round(m.y + 5));
+    if (flip) ctx.scale(-1,1);
+    ctx.drawImage(img, -8, -3, 16, 6);
+    ctx.restore();
+    return;
+  }
+  if (m.state === 'ghost' || m.state === 'escape'){
+    sprite(img, m.x, m.y, flip, 1, 0.22);
+    sprite(m.type === 'fygar' ? SP.fygarEyes : SP.pookaEyes, m.x, m.y, flip, 1, 0.95);
+    return;
+  }
+  const s = 1 + m.inflate*0.22;
+  sprite(img, m.x, m.y, flip, s);
+  if (m.type === 'fygar') drawFlame(m);
+  if (m.firing === 1 && Math.floor(m.fireTimer*12) % 2 === 0){
+    ctx.fillStyle = '#ffd23f';
+    ctx.fillRect(Math.round(m.x + DX[m.dir]*8) - 1, Math.round(m.y) - 1, 3, 3);
+  }
+}
+
+function drawHarpoon(){
+  let dir = hero.dir, len = 0;
+  if (hero.hooked){
+    const m = hero.hooked;
+    len = Math.max(6, Math.hypot(m.x - hero.x, m.y - hero.y) - 6);
+    dir = Math.abs(m.x - hero.x) > Math.abs(m.y - hero.y) ? (m.x > hero.x ? RIGHT : LEFT)
+                                                          : (m.y > hero.y ? DOWN : UP);
+  } else if (hero.harpoon){
+    dir = hero.harpoon.dir; len = hero.harpoon.len;
+  } else return;
+  const x0 = hero.x + DX[dir]*5, y0 = hero.y + DY[dir]*5;
+  const x1 = x0 + DX[dir]*len, y1 = y0 + DY[dir]*len;
+  ctx.strokeStyle = '#e6e9f2';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(Math.round(x0)+0.5, Math.round(y0)+0.5);
+  ctx.lineTo(Math.round(x1)+0.5, Math.round(y1)+0.5); ctx.stroke();
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(Math.round(x1)-2, Math.round(y1)-2, 4, 4);
+}
+
+function drawHero(){
+  if (state === 'clear' && Math.floor(stateT*8) % 2 === 0 && stateT < 1.4){ /* victory blink */ }
+  if (hero.dead){
+    const t = hero.deadT;
+    if (hero.cause === 'rock'){
+      sprite(SP.heroSquash, hero.x, hero.y + 3, false, 1, t > 1.6 ? Math.max(0, 1-(t-1.6)/0.6) : 1);
+    } else {
+      const img = Math.floor(t*10) % 2 ? SP.heroHurt : SP.heroDown[0];
+      ctx.save();
+      ctx.globalAlpha = t > 1.5 ? Math.max(0, 1 - (t-1.5)/0.7) : 1;
+      ctx.translate(Math.round(hero.x), Math.round(hero.y));
+      ctx.rotate(Math.min(t*3.2, Math.PI/2));
+      ctx.drawImage(img, -8, -8);
+      ctx.restore();
+    }
+    return;
+  }
+  if (hero.invT > 0 && Math.floor(hero.invT*12) % 2 === 0) return;
+  let img, flip = false;
+  if (hero.dir === LEFT || hero.dir === RIGHT){ img = SP.heroSide[hero.frame]; flip = hero.dir === LEFT; }
+  else if (hero.dir === DOWN) img = SP.heroDown[hero.frame];
+  else img = SP.heroUp[hero.frame];
+  sprite(img, hero.x, hero.y, flip);
+}
+
+function drawFx(){
+  for (let i=0;i<fx.length;i++){
+    const f = fx[i];
+    const a = Math.max(0, 1 - f.t/f.life);
+    if (f.kind === 'bit'){
+      ctx.globalAlpha = a; ctx.fillStyle = f.col;
+      ctx.fillRect(Math.round(f.x), Math.round(f.y), 2, 2);
+      ctx.globalAlpha = 1;
+    } else {
+      ctx.globalAlpha = a;
+      text(f.text, f.x, f.y, f.col, 'center');
+      ctx.globalAlpha = 1;
+    }
+  }
+}
+
+function drawFlower(x, y, tier){
+  const petal = ['#ff4a3d','#ffd23f','#4ec93a','#45b6ff','#c86bff'][tier % 5];
+  ctx.fillStyle = '#2c7a20';
+  ctx.fillRect(x, y+4, 1, 5);
+  ctx.fillStyle = petal;
+  ctx.fillRect(x-2, y+1, 5, 3);
+  ctx.fillRect(x-1, y, 3, 5);
+  ctx.fillStyle = '#ffeede';
+  ctx.fillRect(x, y+2, 1, 1);
+}
+
+function drawHud(){
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(0, 0, W, FY);
+  ctx.fillRect(0, FY + FH, W, H - FY - FH);
+  text('1UP', 6, 2, C.red);
+  text(String(score).padStart(6,'0'), 38, 2, C.ink);
+  text('HI', 128, 2, C.red);
+  text(String(high).padStart(6,'0'), 150, 2, C.ink);
+
+  const by = FY + FH + 4;
+  for (let i=0;i<Math.min(lives, 6);i++){
+    ctx.drawImage(SP.heroDown[0], 4 + i*12, by - 2, 10, 10);
+  }
+  const flowers = Math.min(level, 12);
+  for (let i=0;i<flowers;i++){
+    drawFlower(W - 8 - i*9, by, Math.floor((level-1)/5));
+  }
+}
+
+function overlay(lines, colour){
+  ctx.fillStyle = 'rgba(0,0,0,.78)';
+  ctx.fillRect(0, FY + 60, W, 74);
+  ctx.fillStyle = colour || C.amber;
+  ctx.fillRect(0, FY + 60, W, 1);
+  ctx.fillRect(0, FY + 133, W, 1);
+  for (let i=0;i<lines.length;i++){
+    text(lines[i].t, W/2, FY + 74 + i*16, lines[i].c || C.ink, 'center');
+  }
+}
+
+function draw(){
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0,0,W,H);
+  drawField();
+  drawRocks();
+  drawVeg();
+  for (let i=0;i<enemies.length;i++) drawMonster(enemies[i]);
+  drawHarpoon(); drawHero();
+  drawFx();
+  drawHud();
+
+  if (state === 'title'){
+    overlay([
+      { t:'DIG DUG', c:C.amber },
+      { t:'PRESS SPACE', c:C.ink },
+      { t:'PUMP THEM UNTIL THEY POP', c:C.dim }
+    ]);
+  } else if (state === 'ready'){
+    overlay([{ t:'ROUND ' + level, c:C.amber }, { t:'GET READY', c:C.ink }]);
+  } else if (state === 'clear'){
+    overlay([{ t:'ROUND ' + level + ' CLEAR', c:'#8ef07a' }, { t:'SCORE ' + score, c:C.ink }]);
+  } else if (state === 'over'){
+    overlay([
+      { t:'GAME OVER', c:C.red },
+      { t:'SCORE ' + score, c:C.ink },
+      { t:'PRESS SPACE OR R', c:C.dim }
+    ]);
+  } else if (paused){
+    overlay([{ t:'PAUSED', c:C.amber }, { t:'PRESS P', c:C.dim }]);
+  }
+}
+
+/* ---------- boot ---------- */
+function fit(){
+  const availW = window.innerWidth - 56;
+  const availH = window.innerHeight - 180;
+  let s = Math.min(availW / W, availH / H);
+  s = s >= 1 ? Math.floor(s) : Math.max(0.55, s);
+  cv.style.width = (W * s) + 'px';
+  cv.style.height = (H * s) + 'px';
+}
+window.addEventListener('resize', fit);
+
+let last = 0, fontReady = false;
+function loop(now){
+  const dt = Math.min(0.05, (now - last)/1000 || 0);
+  last = now;
+  try {
+    if (!paused) update(dt);
+    draw();
+  } catch (err){
+    console.error('frame error', err);   /* keep the loop alive rather than freezing */
+  }
+  requestAnimationFrame(loop);
+}
+
+function boot(){
+  if (fontReady) return;
+  fontReady = true;
+  last = performance.now();
+  requestAnimationFrame(loop);
+}
+
+fit();
+startLevel();
+state = 'title';
+if (document.fonts && document.fonts.load){
+  document.fonts.load('8px "Press Start 2P"').then(boot).catch(boot);
+  setTimeout(function(){ if (!fontReady) boot(); }, 1800);
+} else boot();
+</script>
