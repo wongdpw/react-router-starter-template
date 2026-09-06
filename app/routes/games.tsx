@@ -176,7 +176,7 @@ const GAMES: GameCard[] = [
 		title: "Hop Home",
 		tagline: "Retro arcade",
 		blurb:
-			"Dodge six lanes of traffic, then ride logs and turtles across the river \u2014 fill all five homes before the clock runs out, or lose a life and start the crossing over.",
+			"Dodge five lanes of traffic, then ride logs and diving turtles across the river \u2014 fill all five homes before the clock runs out, and watch for the alligator lurking in an empty one.",
 		players: "Play alone",
 		modes: "Keyboard \u00b7 No room needed",
 		href: "/hop-home",
@@ -188,7 +188,7 @@ const GAMES: GameCard[] = [
 		title: "Paper Route",
 		tagline: "Retro arcade",
 		blurb:
-			"Ride down a scrolling street lined with houses, land papers in every subscriber's mailbox, and dodge potholes, cars and dogs along the way.",
+			"Ride down a scrolling street, land papers in every subscriber's mailbox before they cancel, and dodge the bins, cars, dogs and skaters in your way.",
 		players: "Play alone",
 		modes: "Keyboard \u00b7 No room needed",
 		href: "/paper-route",

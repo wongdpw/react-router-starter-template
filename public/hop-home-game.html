@@ -1,0 +1,1171 @@
+<title>Hop Home</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Chakra+Petch:wght@400;600&display=swap">
+<style>
+  :root{
+    --void:#040a08;
+    --panel:#0a1a14;
+    --edge:#132b20;
+    --ink:#e6ffe9;
+    --dim:#7ba58c;
+    --green:#6ef2a0;
+    --magenta:#ff3c78;
+    --amber:#ffc93c;
+    --cyan:#45e0d8;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    min-height:100vh;
+    background:
+      radial-gradient(120% 80% at 50% -10%, #10321f 0%, rgba(16,50,31,0) 60%),
+      radial-gradient(90% 60% at 50% 110%, #0d1c3a 0%, rgba(13,28,58,0) 55%),
+      var(--void);
+    color:var(--ink);
+    font-family:"Chakra Petch","Segoe UI",system-ui,sans-serif;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:16px;
+    padding:20px 14px 24px;
+  }
+  header{text-align:center;display:flex;flex-direction:column;gap:9px;align-items:center}
+  h1{
+    font-family:"Press Start 2P","Courier New",monospace;
+    font-size:clamp(20px,5.4vw,34px);
+    letter-spacing:.1em;
+    margin:0;
+    color:var(--ink);
+    text-shadow:
+      -2px 0 0 var(--magenta),
+      2px 0 0 var(--green),
+      0 0 22px rgba(110,242,160,.35);
+  }
+  .tag{
+    font-size:11px;
+    letter-spacing:.24em;
+    text-transform:uppercase;
+    color:var(--dim);
+    font-weight:600;
+  }
+  .tag b{color:var(--amber);font-weight:600}
+  #cabinet{
+    position:relative;
+    padding:13px;
+    border-radius:14px;
+    background:linear-gradient(180deg,var(--edge) 0%,var(--panel) 45%,#050f0b 100%);
+    box-shadow:
+      0 0 0 1px rgba(120,220,160,.16),
+      0 0 34px rgba(110,242,160,.13),
+      0 24px 60px rgba(0,0,0,.65),
+      inset 0 1px 0 rgba(190,255,215,.1);
+  }
+  #screenwrap{position:relative;line-height:0;border-radius:4px;overflow:hidden;background:#000;
+    box-shadow:inset 0 0 0 2px #000}
+  canvas{display:block;image-rendering:pixelated;background:#000;touch-action:none}
+  .crt{
+    position:absolute;inset:0;pointer-events:none;
+    background:
+      repeating-linear-gradient(180deg, rgba(0,0,0,.30) 0 1px, rgba(0,0,0,0) 1px 3px),
+      radial-gradient(120% 100% at 50% 50%, rgba(0,0,0,0) 55%, rgba(0,0,0,.5) 100%);
+    mix-blend-mode:multiply;
+  }
+  .glare{
+    position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(196deg, rgba(200,255,220,.09) 0%, rgba(200,255,220,0) 34%);
+  }
+  .legend{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;max-width:540px}
+  .chip{
+    display:inline-flex;align-items:center;gap:7px;
+    padding:5px 10px;border-radius:999px;
+    background:rgba(19,43,32,.72);
+    border:1px solid rgba(123,165,140,.24);
+    font-size:12px;color:var(--dim);letter-spacing:.02em;
+  }
+  kbd{
+    font-family:"Press Start 2P","Courier New",monospace;
+    font-size:8px;color:var(--ink);
+    background:#07130e;border:1px solid rgba(123,165,140,.4);
+    border-bottom-width:2px;border-radius:3px;padding:4px 5px 3px;
+  }
+  footer{font-size:11px;color:#557a66;letter-spacing:.06em;text-align:center;max-width:480px}
+  @media (prefers-reduced-motion:no-preference){
+    h1{animation:flick 7s infinite steps(1)}
+    @keyframes flick{0%,96%,100%{opacity:1}97%{opacity:.72}98%{opacity:1}99%{opacity:.85}}
+  }
+</style>
+
+<header>
+  <h1>HOP HOME</h1>
+  <div class="tag"><b>5 homes</b> &middot; five lanes of traffic</div>
+</header>
+
+<div id="cabinet">
+  <div id="screenwrap">
+    <canvas id="game" width="240" height="256"></canvas>
+    <div class="glare"></div>
+    <div class="crt"></div>
+  </div>
+</div>
+
+<div class="legend">
+  <span class="chip"><kbd>&larr;</kbd><kbd>&darr;</kbd><kbd>&uarr;</kbd><kbd>&rarr;</kbd> hop</span>
+  <span class="chip"><kbd>P</kbd> pause</span>
+  <span class="chip"><kbd>M</kbd> sound</span>
+  <span class="chip"><kbd>R</kbd> restart</span>
+  <span class="chip">Touch: swipe to hop</span>
+</div>
+
+<footer>Turtles sink without warning, logs carry you off&#8209;screen, and a hedge is as fatal as a truck. Escort the pink lady frog home for 200.</footer>
+
+<script>
+"use strict";
+const W = 240, H = 256, CELL = 16;
+const cv = document.getElementById('game');
+const ctx = cv.getContext('2d');
+ctx.imageSmoothingEnabled = false;
+
+/* rows are 16px tall, index 0 at the top of the screen */
+const R_HOME = 1, R_MEDIAN = 7, R_BANK = 13;
+const RIVER = [2,3,4,5,6];
+const ROAD  = [8,9,10,11,12];
+function rowY(r){ return r * CELL; }
+function rowMid(r){ return r * CELL + 8; }
+
+const C = {
+  white:'#ffffff', ink:'#e6ffe9', dim:'#7ba58c',
+  green:'#6ef2a0', darkgreen:'#1f7a45', hedge:'#0e6b34', hedgeDark:'#074a22',
+  magenta:'#ff3c78', amber:'#ffc93c', cyan:'#45e0d8',
+  road:'#0b0d14', roadLine:'#3a3f52',
+  water:'#0d2a6b', waterLite:'#1c46a8', waterFoam:'#5a8ff0',
+  log:'#8a5a2b', logDark:'#5e3a17', logLite:'#b07a44',
+  safe:'#2a1b4a', safeLite:'#40296e',
+  bay:'#050a18', red:'#f2453d', purple:'#b06cff', yellow:'#ffd23f'
+};
+
+/* the five home bays, centred on columns 1, 4, 7, 10 and 13 */
+const BAYS = [24, 72, 120, 168, 216];
+
+/* ---------- pixel sprites ---------- */
+function makeSprite(rows, pal){
+  const w = rows[0].length, h = rows.length;
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d');
+  for (let y=0;y<h;y++) for (let x=0;x<w;x++){
+    const col = pal[rows[y][x]];
+    if (col){ g.fillStyle = col; g.fillRect(x,y,1,1); }
+  }
+  return c;
+}
+
+const FROG_SIT = [
+  '................',
+  '.....W....W.....',
+  '....WWK..KWW....',
+  '....WWK..KWW....',
+  '.....GGGGGG.....',
+  '..GG.GGGGGG.GG..',
+  '.GGGGGGGGGGGGGG.',
+  '.GGDGGGGGGGGDGG.',
+  '.GGDGGGGGGGGDGG.',
+  '.GGGGGGGGGGGGGG.',
+  '..GGGGGGGGGGGG..',
+  '...GG.GGGG.GG...',
+  '..GGG.GGGG.GGG..',
+  '..GG..GGGG..GG..',
+  '..G...G..G...G..',
+  '................'
+];
+const FROG_HOP = [
+  '................',
+  '.....W....W.....',
+  '....WWK..KWW....',
+  '....WWK..KWW....',
+  '..G..GGGGGG..G..',
+  '.GG.GGGGGGGG.GG.',
+  'GGG.GGGGGGGG.GGG',
+  'GG..GGGGGGGG..GG',
+  'G...GGGGGGGG...G',
+  '....GGGGGGGG....',
+  '...GGGGGGGGGG...',
+  '..GG.GGGGGG.GG..',
+  '.GG...GGGG...GG.',
+  'GG....GGGG....GG',
+  'G.....G..G.....G',
+  '................'
+];
+const SPLAT = [
+  '................',
+  '................',
+  '....W.W..W.W....',
+  '.....WWWWWW.....',
+  '..W.WWWWWWWW.W..',
+  '...WWWKWWKWWW...',
+  '..WWWWWWWWWWWW..',
+  '.W.WWWWWWWWWW.W.',
+  '..WWWWWWWWWWWW..',
+  '...WWWKWWKWWW...',
+  '..W.WWWWWWWW.W..',
+  '.....WWWWWW.....',
+  '....W.W..W.W....',
+  '................',
+  '................',
+  '................'
+];
+const SPLASH = [
+  '................',
+  '................',
+  '................',
+  '....C......C....',
+  '..C..........C..',
+  '.C.WWWWWWWWWW.C.',
+  '..W..........W..',
+  '.W............W.',
+  '.W............W.',
+  '..W..........W..',
+  '.C.WWWWWWWWWW.C.',
+  '..C..........C..',
+  '....C......C....',
+  '................',
+  '................',
+  '................'
+];
+const CAR = [
+  '................',
+  '................',
+  '..KK........KK..',
+  '..KK.YYYYYY.KK..',
+  '...YYYYYYYYYY...',
+  '..YYYWWWWYYYYY..',
+  '.YYYYWWWWYYYYYY.',
+  'YYYYYWWWWYYYYYYY',
+  'YYYYYWWWWYYYYYYY',
+  '.YYYYWWWWYYYYYY.',
+  '..YYYWWWWYYYYY..',
+  '...YYYYYYYYYY...',
+  '..KK.YYYYYY.KK..',
+  '..KK........KK..',
+  '................',
+  '................'
+];
+const DOZER = [
+  '................',
+  '................',
+  '..KKKKKKKKKKKK..',
+  '..KGGGGGGGGGGK..',
+  '.KGGGGGGGGGGGGK.',
+  '.KGGKKKKKKKKGGK.',
+  '.KGGKWWWWWWKGGK.',
+  '.KGGKWWWWWWKGGK.',
+  '.KGGKWWWWWWKGGK.',
+  '.KGGKWWWWWWKGGK.',
+  '.KGGKKKKKKKKGGK.',
+  '.KGGGGGGGGGGGGK.',
+  '..KGGGGGGGGGGK..',
+  '..KKKKKKKKKKKK..',
+  '................',
+  '................'
+];
+const TRUCK = [
+  '................................',
+  '................................',
+  '..KK......KK........KK....KK....',
+  '..KK......KK........KK....KK....',
+  'WWWWWWWWWWWWWWWWWWWW..RRRRRRRRRR',
+  'WWBBBBBBBBBBBBBBBBWW..RRRRWWWWRR',
+  'WWBBBBBBBBBBBBBBBBWW..RRRRWWWWRR',
+  'WWBBBBBBBBBBBBBBBBWW..RRRRRRRRRR',
+  'WWBBBBBBBBBBBBBBBBWW..RRRRRRRRRR',
+  'WWBBBBBBBBBBBBBBBBWW..RRRRWWWWRR',
+  'WWBBBBBBBBBBBBBBBBWW..RRRRWWWWRR',
+  'WWWWWWWWWWWWWWWWWWWW..RRRRRRRRRR',
+  '..KK......KK........KK....KK....',
+  '..KK......KK........KK....KK....',
+  '................................',
+  '................................'
+];
+const TURTLE = [
+  '................',
+  '.......LL.......',
+  '......LKKL......',
+  '..LL..GGGG..LL..',
+  '.LLLGGGGGGGGLLL.',
+  '..GGGDDDDDDGGG..',
+  '.GGDDDLLLLDDDGG.',
+  'GGDDLLDDDDLLDDGG',
+  'GGDDLLDDDDLLDDGG',
+  '.GGDDDLLLLDDDGG.',
+  '..GGGDDDDDDGGG..',
+  '.LLLGGGGGGGGLLL.',
+  '..LL..GGGG..LL..',
+  '.......GG.......',
+  '................',
+  '................'
+];
+const FLY = [
+  '................',
+  '................',
+  '................',
+  '...W........W...',
+  '....WWW..WWW....',
+  '.....WWWWWW.....',
+  '......KKKK......',
+  '.....KKKKKK.....',
+  '.....KKKKKK.....',
+  '......KKKK......',
+  '.......KK.......',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................'
+];
+const GATOR_HEAD = [
+  '................',
+  '..K..........K..',
+  '..KK........KK..',
+  '..KGK......KGK..',
+  '..KKKKKKKKKKKK..',
+  '.KGGGGGGGGGGGGK.',
+  '.KGGGGGGGGGGGGK.',
+  '.KGGGGGGGGGGGGK.',
+  '.KRRRRRRRRRRRRK.',
+  '.KWRWRWRWRWRWRK.',
+  '.KRRRRRRRRRRRRK.',
+  '.KWRWRWRWRWRWRK.',
+  '.KRRRRRRRRRRRRK.',
+  '..KKKKKKKKKKKK..',
+  '................',
+  '................'
+];
+
+const S = {
+  frogSit:  makeSprite(FROG_SIT, {G:C.green, D:C.darkgreen, W:'#ffffff', K:'#0b1b12'}),
+  frogHop:  makeSprite(FROG_HOP, {G:C.green, D:C.darkgreen, W:'#ffffff', K:'#0b1b12'}),
+  ladySit:  makeSprite(FROG_SIT, {G:'#ff8ab8', D:'#c2437a', W:'#ffffff', K:'#3b0d20'}),
+  splat:    makeSprite(SPLAT,  {W:'#ffffff', K:'#0b1b12'}),
+  splash:   makeSprite(SPLASH, {W:'#cfe4ff', C:C.waterFoam}),
+  carY:     makeSprite(CAR, {Y:'#ffd23f', W:'#2b2410', K:'#0b0d14'}),
+  carP:     makeSprite(CAR, {Y:'#b06cff', W:'#2a1a44', K:'#0b0d14'}),
+  racer:    makeSprite(CAR, {Y:'#4de07a', W:'#123a22', K:'#0b0d14'}),
+  dozer:    makeSprite(DOZER, {G:'#e07a2b', W:'#ffe6b0', K:'#0b0d14'}),
+  truck:    makeSprite(TRUCK, {W:'#e8edff', B:'#78879f', R:'#f2453d', K:'#0b0d14'}),
+  turtle:   makeSprite(TURTLE, {G:'#2f9149', D:'#15522c', L:'#6ee08a', K:'#06120b'}),
+  turtleLow:makeSprite(TURTLE, {G:'#1f6434', D:'#123f22', L:'#3f9457', K:'#06120b'}),
+  fly:      makeSprite(FLY, {W:'#dfe7ff', K:'#101322'}),
+  gator:    makeSprite(GATOR_HEAD, {G:'#ffd23f', K:'#06120b', R:'#a01828', W:'#ffffff'})
+};
+
+/* ---------- sound ---------- */
+const Sound = (function(){
+  let ac = null, on = true;
+  function ensure(){
+    if (!ac){ try{ ac = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ on = false; } }
+    if (ac && ac.state === 'suspended') ac.resume();
+    return ac;
+  }
+  function tone(type, f0, f1, dur, vol, when){
+    if (!on) return; const a = ensure(); if (!a) return;
+    const t = a.currentTime + (when||0);
+    const o = a.createOscillator(), g = a.createGain();
+    o.type = type; o.frequency.setValueAtTime(f0, t);
+    o.frequency.exponentialRampToValueAtTime(Math.max(20,f1), t+dur);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t+0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+    o.connect(g).connect(a.destination); o.start(t); o.stop(t+dur+0.03);
+  }
+  function noise(dur, vol, f0, f1){
+    if (!on) return; const a = ensure(); if (!a) return;
+    const t = a.currentTime, n = Math.max(1, Math.floor(a.sampleRate*dur));
+    const buf = a.createBuffer(1, n, a.sampleRate), d = buf.getChannelData(0);
+    for (let i=0;i<n;i++) d[i] = (Math.random()*2-1) * (1 - i/n);
+    const s = a.createBufferSource(); s.buffer = buf;
+    const bp = a.createBiquadFilter(); bp.type = 'bandpass'; bp.Q = 1.1;
+    bp.frequency.setValueAtTime(f0, t);
+    bp.frequency.exponentialRampToValueAtTime(Math.max(40,f1), t+dur);
+    const g = a.createGain();
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+    s.connect(bp).connect(g).connect(a.destination); s.start(t);
+  }
+  return {
+    unlock(){ ensure(); },
+    toggle(){ on = !on; if (on) ensure(); return on; },
+    get enabled(){ return on; },
+    hop(){ tone('square', 300, 660, 0.07, 0.05); },
+    squash(){ noise(0.35, 0.2, 1200, 90); tone('sawtooth', 260, 50, 0.32, 0.07); },
+    drown(){ noise(0.5, 0.16, 700, 120); tone('sine', 500, 90, 0.4, 0.05); },
+    home(){ [523,659,784,1047].forEach(function(f,i){ tone('square', f, f, 0.1, 0.05, i*0.07); }); },
+    hedge(){ tone('square', 180, 60, 0.22, 0.06); },
+    bonus(){ [784,988,1319,1568].forEach(function(f,i){ tone('square', f, f, 0.09, 0.05, i*0.06); }); },
+    extra(){ [659,880,1319].forEach(function(f,i){ tone('triangle', f, f, 0.14, 0.06, i*0.1); }); },
+    stage(){ [392,494,587,784,988].forEach(function(f,i){ tone('square', f, f, 0.12, 0.05, i*0.11); }); },
+    tick(){ tone('square', 1200, 1200, 0.03, 0.03); },
+    over(){ [440,392,330,262,196].forEach(function(f,i){ tone('sawtooth', f, f*0.98, 0.22, 0.055, i*0.17); }); },
+    coin(){ tone('square', 988, 988, 0.06, 0.055); tone('square', 1319, 1319, 0.16, 0.055, 0.06); }
+  };
+})();
+
+/* ---------- text ---------- */
+let fontReady = false;
+function font(px){ return px + 'px "Press Start 2P", "Courier New", monospace'; }
+function text(str, x, y, col, size, align){
+  ctx.font = font(size||8);
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillStyle = col || C.ink;
+  ctx.fillText(str, x, y);
+  ctx.textAlign = 'left';
+}
+function pad(n, len){
+  let s = String(n);
+  while (s.length < len) s = '0' + s;
+  return s;
+}
+
+/* ---------- world ---------- */
+let lanes = [];
+let clock = 0;
+
+function makeLane(cfg){
+  const span = W + cfg.w + (cfg.extra || 60);
+  const step = span / cfg.count;
+  const start = Math.random() * span;
+  const lane = {
+    row: cfg.row, dir: cfg.dir, speed: cfg.speed, w: cfg.w,
+    kind: cfg.kind, sprite: cfg.sprite || null, span: span, items: []
+  };
+  for (let i = 0; i < cfg.count; i++){
+    const item = {
+      x: ((i * step + start) % span) - cfg.w,
+      w: cfg.w,
+      lady: false
+    };
+    if (cfg.kind === 'turtle'){
+      item.n = cfg.n;
+      item.diver = (i % 2 === 0);
+      item.phase = Math.random() * 10;
+    }
+    if (cfg.kind === 'gator'){ item.mouth = Math.random() * 10; }
+    lane.items.push(item);
+  }
+  return lane;
+}
+
+function buildLanes(){
+  const m = Math.min(2.1, 1 + (level - 1) * 0.12);
+  lanes = [];
+  /* river: rows 2-6, top to bottom */
+  lanes.push(makeLane({row:2, dir:+1, speed:34*m, w:64, count:3, extra:74, kind:'log'}));
+  lanes.push(makeLane({row:3, dir:-1, speed:32*m, w:48, count:4, extra:56, kind:'turtle', n:3}));
+  lanes.push(makeLane({row:4, dir:+1, speed:26*m, w:96, count:3, extra:44, kind:'log'}));
+  lanes.push(makeLane({row:5, dir:+1, speed:46*m, w:48, count:4, extra:64, kind:'log'}));
+  lanes.push(makeLane({row:6, dir:-1, speed:38*m, w:32, count:5, extra:70, kind:'turtle', n:2}));
+  /* road: rows 8-12, row 8 sits just under the median */
+  lanes.push(makeLane({row:8,  dir:-1, speed:48*m, w:32, count:3, extra:120, kind:'car', sprite:S.truck}));
+  lanes.push(makeLane({row:9,  dir:+1, speed:104*m, w:16, count:2, extra:160, kind:'car', sprite:S.racer}));
+  lanes.push(makeLane({row:10, dir:-1, speed:56*m, w:16, count:3, extra:104, kind:'car', sprite:S.carP}));
+  lanes.push(makeLane({row:11, dir:+1, speed:46*m, w:16, count:3, extra:92,  kind:'car', sprite:S.dozer}));
+  lanes.push(makeLane({row:12, dir:-1, speed:40*m, w:16, count:3, extra:92,  kind:'car', sprite:S.carY}));
+
+  /* from level 3 the longest log in row 4 becomes an alligator */
+  if (level >= 3){
+    const gl = lanes[2];
+    gl.items[0].gatorItem = true;
+    gl.items[0].mouth = 0;
+  }
+}
+
+function laneAt(row){
+  for (let i=0;i<lanes.length;i++) if (lanes[i].row === row) return lanes[i];
+  return null;
+}
+
+/* turtle float state: 2 = surfaced, 1 = sinking, 0 = submerged */
+function turtleState(item){
+  if (!item.diver) return 2;
+  const cycle = Math.max(3.6, 6.4 - level * 0.25);
+  const p = (clock + item.phase) % cycle;
+  const up = cycle * 0.50, sink = cycle * 0.14, under = cycle * 0.22;
+  if (p < up) return 2;
+  if (p < up + sink) return 1;
+  if (p < up + sink + under) return 0;
+  return 1;
+}
+
+/* ---------- game state ---------- */
+let state = 'title';          /* title | play | dying | clear | over */
+let score = 0, high = 0, lives = 3, level = 1;
+let bonusLife = 20000;
+let homes = [];               /* null | 'frog' | 'lady' */
+let timeLimit = 32, timeLeft = 32;
+let deathT = 0, deathKind = 'splat';
+let clearT = 0;
+let paused = false;
+let popups = [];              /* floating score text */
+let fly = null;               /* {bay, t} */
+let gatorHome = null;         /* {bay, t} */
+let snake = null;             /* {x, dir, speed} on the median */
+let lady = null;              /* {lane, item, t} riding a log */
+let tickAcc = 0;
+
+try { high = parseInt(localStorage.getItem('hop-home.high') || '0', 10) || 0; } catch(e){ high = 0; }
+function saveHigh(){ try { localStorage.setItem('hop-home.high', String(high)); } catch(e){} }
+
+const frog = {
+  x: 120, y: rowMid(R_BANK), sx: 120, sy: rowMid(R_BANK),
+  t: 1, dir: 0, best: R_BANK, escort: false, alive: true, buf: null
+};
+
+function resetFrog(){
+  frog.x = 120; frog.y = rowMid(R_BANK);
+  frog.sx = frog.x; frog.sy = frog.y;
+  frog.t = 1; frog.dir = 0; frog.best = R_BANK;
+  frog.escort = false; frog.alive = true; frog.buf = null;
+  timeLeft = timeLimit;
+}
+
+function startLevel(){
+  timeLimit = Math.max(20, 34 - (level - 1) * 1.6);
+  buildLanes();
+  homes = [null, null, null, null, null];
+  fly = null; gatorHome = null; lady = null;
+  snake = (level >= 3)
+    ? { x: 40, dir: 1, speed: 22 + level * 3 }
+    : null;
+  resetFrog();
+}
+
+function newGame(){
+  score = 0; lives = 3; level = 1; bonusLife = 20000;
+  popups = [];
+  startLevel();
+  state = 'play';
+}
+
+function addScore(n){
+  score += n;
+  if (score >= bonusLife){ lives++; bonusLife += 20000; Sound.extra(); }
+  if (score > high){ high = score; saveHigh(); }
+}
+
+function popup(str, x, y, col){
+  popups.push({ str: str, x: x, y: y, col: col || C.amber, t: 0 });
+}
+
+/* ---------- frog helpers ---------- */
+const HOP_TIME = 0.105;
+function fx(){ return frog.sx + (frog.x - frog.sx) * frog.t; }
+function fy(){ return frog.sy + (frog.y - frog.sy) * frog.t; }
+function frogRow(){ return Math.round((frog.y - 8) / CELL); }
+
+function tryHop(dx, dy){
+  if (state !== 'play' || paused || !frog.alive) return;
+  if (frog.t < 1){ frog.buf = [dx, dy]; return; }
+  doHop(dx, dy);
+}
+
+function doHop(dx, dy){
+  const nx = frog.x + dx * CELL;
+  const ny = frog.y + dy * CELL;
+  if (ny < rowMid(R_HOME) - 0.5 || ny > rowMid(R_BANK) + 0.5) return;
+  if (nx < 8 || nx > W - 8) return;
+  frog.sx = frog.x; frog.sy = frog.y;
+  frog.x = nx; frog.y = ny; frog.t = 0;
+  frog.dir = dy < 0 ? 0 : dy > 0 ? 2 : dx > 0 ? 1 : 3;
+  Sound.hop();
+}
+
+function snapColumn(){
+  let c = Math.round((frog.x - 8) / CELL);
+  c = Math.max(0, Math.min(14, c));
+  frog.x = c * CELL + 8;
+  frog.sx = frog.x;
+}
+
+function die(kind){
+  if (!frog.alive) return;
+  frog.alive = false;
+  frog.escort = false;
+  deathKind = kind;
+  deathT = 0;
+  state = 'dying';
+  if (kind === 'splash') Sound.drown();
+  else if (kind === 'hedge') Sound.hedge();
+  else Sound.squash();
+}
+
+function enterHome(){
+  let bay = -1;
+  for (let i = 0; i < BAYS.length; i++){
+    if (Math.abs(frog.x - BAYS[i]) <= 13){ bay = i; break; }
+  }
+  if (bay < 0 || homes[bay]){ die('hedge'); return; }
+  if (gatorHome && gatorHome.bay === bay){ die('splat'); return; }
+
+  homes[bay] = frog.escort ? 'lady' : 'frog';
+  let gained = 50;
+  const tb = Math.floor(Math.max(0, timeLeft)) * 10;
+  gained += tb;
+  if (fly && fly.bay === bay){ gained += 200; fly = null; popup('200', BAYS[bay], rowY(2) + 2, C.cyan); }
+  if (frog.escort){ gained += 200; popup('200', BAYS[bay] , rowY(2) + 10, '#ff8ab8'); }
+  addScore(gained);
+  popup('+' + tb, BAYS[bay], rowY(1) + 18, C.amber);
+  Sound.home();
+
+  let done = true;
+  for (let i = 0; i < homes.length; i++) if (!homes[i]) done = false;
+  if (done){
+    addScore(1000);
+    state = 'clear'; clearT = 0;
+    Sound.stage();
+  } else {
+    resetFrog();
+  }
+}
+
+/* ---------- update ---------- */
+function updateLanes(dt){
+  for (let li = 0; li < lanes.length; li++){
+    const lane = lanes[li];
+    const d = lane.dir * lane.speed * dt;
+    for (let i = 0; i < lane.items.length; i++){
+      const it = lane.items[i];
+      it.x += d;
+      if (lane.dir > 0 && it.x >= lane.span - lane.w){ it.x -= lane.span; it.wrapped = true; }
+      else if (lane.dir < 0 && it.x < -lane.w){ it.x += lane.span; it.wrapped = true; }
+      if (it.gatorItem) it.mouth = (it.mouth + dt) % 4.2;
+    }
+  }
+}
+
+function gatorMouthOpen(it){ return it.mouth > 2.5; }
+
+function floatUnder(lane, x){
+  for (let i = 0; i < lane.items.length; i++){
+    const it = lane.items[i];
+    if (x >= it.x + 2 && x <= it.x + it.w - 2) return it;
+  }
+  return null;
+}
+
+function updateExtras(dt){
+  /* bonus fly in an empty bay */
+  if (fly){
+    fly.t -= dt;
+    if (fly.t <= 0 || homes[fly.bay]) fly = null;
+  } else if (Math.random() < dt * 0.09){
+    const free = [];
+    for (let i = 0; i < 5; i++) if (!homes[i] && !(gatorHome && gatorHome.bay === i)) free.push(i);
+    if (free.length) fly = { bay: free[(Math.random()*free.length)|0], t: 5.5 };
+  }
+
+  /* alligator lurking in a bay */
+  if (level >= 2){
+    if (gatorHome){
+      gatorHome.t -= dt;
+      if (gatorHome.t <= 0) gatorHome = null;
+    } else if (Math.random() < dt * 0.07){
+      const free = [];
+      for (let i = 0; i < 5; i++) if (!homes[i] && !(fly && fly.bay === i)) free.push(i);
+      if (free.length) gatorHome = { bay: free[(Math.random()*free.length)|0], t: 4.5 };
+    }
+  }
+
+  /* lady frog hitching a ride on a log */
+  if (level >= 2 && !frog.escort){
+    if (lady){
+      lady.t -= dt;
+      if (lady.t <= 0 || lady.item.wrapped){ lady.item.lady = false; lady = null; }
+    } else if (Math.random() < dt * 0.05){
+      const pick = lanes[Math.random() < 0.5 ? 0 : 2];
+      const cand = [];
+      for (let i = 0; i < pick.items.length; i++){
+        const it = pick.items[i];
+        if (!it.gatorItem && it.x > -8 && it.x < W - 40) cand.push(it);
+      }
+      if (cand.length){
+        const it = cand[(Math.random()*cand.length)|0];
+        it.lady = true; it.wrapped = false;
+        lady = { lane: pick, item: it, t: 11 };
+      }
+    }
+  }
+
+  /* snake patrolling the median */
+  if (snake){
+    snake.x += snake.dir * snake.speed * dt;
+    if (snake.x < 14){ snake.x = 14; snake.dir = 1; }
+    if (snake.x > W - 14){ snake.x = W - 14; snake.dir = -1; }
+  }
+
+  for (let i = popups.length - 1; i >= 0; i--){
+    const p = popups[i];
+    p.t += dt; p.y -= dt * 10;
+    if (p.t > 1.3) popups.splice(i, 1);
+  }
+}
+
+function updatePlay(dt){
+  /* hop animation */
+  if (frog.t < 1){
+    frog.t += dt / HOP_TIME;
+    if (frog.t >= 1){
+      frog.t = 1;
+      const row = frogRow();
+      if (row < frog.best){ addScore(10); frog.best = row; }
+      if (row === R_HOME){ enterHome(); return; }
+      if (row === R_MEDIAN || row === R_BANK) snapColumn();
+    }
+  } else if (frog.buf){
+    const b = frog.buf; frog.buf = null;
+    doHop(b[0], b[1]);
+  }
+
+  const row = frogRow();
+
+  /* river: ride a float or drown */
+  if (RIVER.indexOf(row) >= 0){
+    const lane = laneAt(row);
+    const ride = floatUnder(lane, frog.x);
+    if (!ride){
+      if (frog.t >= 1){ die('splash'); return; }
+    } else {
+      if (lane.kind === 'turtle' && turtleState(ride) === 0 && frog.t >= 1){ die('splash'); return; }
+      if (ride.gatorItem && gatorMouthOpen(ride) && frog.x > ride.x + ride.w - 18){ die('splat'); return; }
+      const d = lane.dir * lane.speed * dt;
+      frog.x += d; frog.sx += d;
+      if (ride.lady && frog.t >= 1){
+        ride.lady = false; lady = null; frog.escort = true; Sound.bonus();
+        popup('LADY', frog.x, frog.y - 12, '#ff8ab8');
+      }
+      if (frog.x < 7 || frog.x > W - 7){ die('splash'); return; }
+    }
+  }
+
+  /* road: anything in the lane squashes you */
+  if (ROAD.indexOf(row) >= 0){
+    const lane = laneAt(row);
+    const px = fx();
+    for (let i = 0; i < lane.items.length; i++){
+      const it = lane.items[i];
+      if (px + 5 > it.x + 1 && px - 5 < it.x + it.w - 1){ die('splat'); return; }
+    }
+  }
+
+  /* snake on the median */
+  if (snake && row === R_MEDIAN && Math.abs(fx() - snake.x) < 11){ die('splat'); return; }
+
+  /* clock */
+  timeLeft -= dt;
+  if (timeLeft <= 5){
+    tickAcc += dt;
+    if (tickAcc > 0.5){ tickAcc = 0; Sound.tick(); }
+  }
+  if (timeLeft <= 0){ timeLeft = 0; die('time'); return; }
+}
+
+function update(dt){
+  clock += dt;
+  updateLanes(dt);
+
+  if (state === 'play'){
+    updateExtras(dt);
+    updatePlay(dt);
+    return;
+  }
+
+  if (state === 'dying'){
+    deathT += dt;
+    for (let i = popups.length - 1; i >= 0; i--){
+      popups[i].t += dt;
+      if (popups[i].t > 1.3) popups.splice(i, 1);
+    }
+    if (deathT > 1.35){
+      lives--;
+      if (lives <= 0){
+        state = 'over';
+        if (score > high){ high = score; saveHigh(); }
+        Sound.over();
+        try { parent.postMessage({ type:'arcade:gameover', game:'hop-home', score:score }, '*'); } catch(e){}
+      } else {
+        resetFrog();
+        state = 'play';
+      }
+    }
+    return;
+  }
+
+  if (state === 'clear'){
+    clearT += dt;
+    if (clearT > 2.3){
+      level++;
+      startLevel();
+      state = 'play';
+    }
+    return;
+  }
+}
+
+/* ---------- drawing ---------- */
+function drawLog(x, y, w){
+  x = Math.round(x);
+  ctx.fillStyle = '#3a230d'; ctx.fillRect(x, y + 2, w, 12);
+  ctx.fillStyle = C.logDark;  ctx.fillRect(x, y + 3, w, 10);
+  ctx.fillStyle = C.log;      ctx.fillRect(x + 1, y + 4, w - 2, 8);
+  ctx.fillStyle = C.logLite;  ctx.fillRect(x + 2, y + 5, w - 4, 2);
+  ctx.fillStyle = C.logDark;
+  for (let i = 7; i < w - 4; i += 11) ctx.fillRect(x + i, y + 5, 1, 6);
+  ctx.fillStyle = '#2a1908';
+  ctx.fillRect(x, y + 4, 2, 8); ctx.fillRect(x + w - 2, y + 4, 2, 8);
+}
+
+function drawGatorFloat(x, y, w, open){
+  x = Math.round(x);
+  ctx.fillStyle = '#0d3016'; ctx.fillRect(x, y + 2, w - 16, 12);
+  ctx.fillStyle = '#3aa657'; ctx.fillRect(x, y + 3, w - 16, 10);
+  ctx.fillStyle = '#65d47f';
+  for (let i = 2; i < w - 20; i += 6) ctx.fillRect(x + i, y + 4, 3, 2);
+  ctx.fillStyle = '#1c6b34';
+  for (let i = 4; i < w - 20; i += 6) ctx.fillRect(x + i, y + 10, 3, 2);
+  /* tail */
+  ctx.fillStyle = '#3aa657'; ctx.fillRect(x - 6, y + 6, 6, 4);
+  /* head at the leading (right) end */
+  const hx = x + w - 16;
+  ctx.fillStyle = '#3aa657'; ctx.fillRect(hx, y + 2, 16, 12);
+  ctx.fillStyle = '#65d47f'; ctx.fillRect(hx + 1, y + 1, 3, 3); ctx.fillRect(hx + 1, y + 12, 3, 3);
+  ctx.fillStyle = C.white;   ctx.fillRect(hx + 2, y + 2, 2, 2); ctx.fillRect(hx + 2, y + 12, 2, 2);
+  if (open){
+    ctx.fillStyle = '#a01828'; ctx.fillRect(hx + 6, y + 4, 10, 8);
+    ctx.fillStyle = C.white;
+    for (let i = 0; i < 5; i++) ctx.fillRect(hx + 7 + i * 2, y + 4, 1, 2);
+    for (let i = 0; i < 5; i++) ctx.fillRect(hx + 7 + i * 2, y + 10, 1, 2);
+  } else {
+    ctx.fillStyle = '#0d3016'; ctx.fillRect(hx + 6, y + 7, 10, 2);
+  }
+}
+
+function drawTurtleGroup(x, y, n, st){
+  x = Math.round(x);
+  for (let i = 0; i < n; i++){
+    const tx = x + i * 16;
+    if (st === 2) ctx.drawImage(S.turtle, tx, y);
+    else if (st === 1) ctx.drawImage(S.turtleLow, tx, y + 1);
+    else {
+      ctx.fillStyle = C.waterFoam;
+      ctx.fillRect(tx + 4, y + 6, 2, 1); ctx.fillRect(tx + 10, y + 9, 2, 1);
+      ctx.fillRect(tx + 7, y + 3, 1, 1);
+    }
+  }
+}
+
+function drawSnake(x, y){
+  x = Math.round(x);
+  ctx.fillStyle = '#7ae04a';
+  for (let i = -10; i <= 8; i += 2){
+    const wob = Math.round(Math.sin((i + clock * 26) * 0.6) * 2);
+    ctx.fillRect(x + i, y + 6 + wob, 2, 4);
+  }
+  ctx.fillStyle = '#a7ff6b'; ctx.fillRect(x + 8, y + 5, 6, 6);
+  ctx.fillStyle = '#0b1b12'; ctx.fillRect(x + 12, y + 6, 1, 1); ctx.fillRect(x + 12, y + 9, 1, 1);
+  ctx.fillStyle = C.red;     ctx.fillRect(x + 14, y + 8, 3, 1);
+}
+
+function drawFrogSprite(sprite, cx, cy, dir){
+  ctx.save();
+  ctx.translate(Math.round(cx), Math.round(cy));
+  ctx.rotate(dir * Math.PI / 2);
+  ctx.drawImage(sprite, -8, -8);
+  ctx.restore();
+}
+
+function drawField(){
+  /* water */
+  ctx.fillStyle = C.water;
+  ctx.fillRect(0, rowY(2), W, CELL * 5);
+  ctx.fillStyle = C.waterLite;
+  for (let k = 0; k < RIVER.length; k++){
+    const r = RIVER[k];
+    for (let i = 0; i < W; i += 20){
+      const off = ((clock * 9 + r * 13 + i) % 20) | 0;
+      ctx.fillRect((i + off) % W, rowY(r) + 12, 7, 1);
+      ctx.fillRect((i + off + 10) % W, rowY(r) + 3, 4, 1);
+    }
+  }
+
+  /* median and start bank */
+  ctx.fillStyle = C.safe;
+  ctx.fillRect(0, rowY(R_MEDIAN), W, CELL);
+  ctx.fillRect(0, rowY(R_BANK), W, CELL);
+  ctx.fillStyle = C.safeLite;
+  ctx.fillRect(0, rowY(R_MEDIAN), W, 1);
+  ctx.fillRect(0, rowY(R_MEDIAN) + CELL - 1, W, 1);
+  ctx.fillRect(0, rowY(R_BANK), W, 1);
+  ctx.fillRect(0, rowY(R_BANK) + CELL - 1, W, 1);
+
+  /* road */
+  ctx.fillStyle = C.road;
+  ctx.fillRect(0, rowY(8), W, CELL * 5);
+  ctx.fillStyle = C.roadLine;
+  for (let r = 9; r <= 12; r++){
+    for (let x = 0; x < W; x += 12) ctx.fillRect(x, rowY(r), 6, 1);
+  }
+
+  /* home hedge with five bays */
+  ctx.fillStyle = C.hedge;
+  ctx.fillRect(0, rowY(R_HOME), W, CELL);
+  ctx.fillStyle = C.hedgeDark;
+  for (let x = 0; x < W; x += 4){
+    ctx.fillRect(x, rowY(R_HOME) + ((x / 4) % 2 ? 3 : 9), 2, 2);
+  }
+  ctx.fillStyle = '#1a8f47';
+  ctx.fillRect(0, rowY(R_HOME) + CELL - 2, W, 2);
+  for (let i = 0; i < BAYS.length; i++){
+    const b = BAYS[i], hy = rowY(R_HOME);
+    ctx.fillStyle = C.bay;
+    ctx.fillRect(b - 14, hy, 28, CELL);
+    ctx.fillStyle = '#0a1a3c';                 /* alcove recess */
+    ctx.fillRect(b - 12, hy + 2, 24, 12);
+    ctx.fillStyle = '#1a8f47';                 /* posts either side */
+    ctx.fillRect(b - 15, hy, 2, CELL);
+    ctx.fillRect(b + 13, hy, 2, CELL);
+    ctx.fillStyle = '#0e6b34';                 /* sill */
+    ctx.fillRect(b - 14, hy + CELL - 2, 28, 2);
+  }
+}
+
+function drawHomeContents(){
+  for (let i = 0; i < BAYS.length; i++){
+    const b = BAYS[i], y = rowY(R_HOME);
+    if (homes[i] === 'frog') ctx.drawImage(S.frogSit, b - 8, y);
+    else if (homes[i] === 'lady') ctx.drawImage(S.ladySit, b - 8, y);
+    else if (gatorHome && gatorHome.bay === i) ctx.drawImage(S.gator, b - 8, y);
+    else if (fly && fly.bay === i) ctx.drawImage(S.fly, b - 8, y);
+    else {                                   /* an empty bay still shows its landing pad */
+      ctx.fillStyle = '#1c5e36';
+      ctx.fillRect(b - 6, y + 10, 12, 2);
+      ctx.fillRect(b - 9, y + 8, 4, 2);
+      ctx.fillRect(b + 5, y + 8, 4, 2);
+    }
+  }
+}
+
+function drawLanes(){
+  for (let li = 0; li < lanes.length; li++){
+    const lane = lanes[li];
+    const y = rowY(lane.row);
+    for (let i = 0; i < lane.items.length; i++){
+      const it = lane.items[i];
+      if (it.x > W || it.x + it.w < 0) continue;
+      if (lane.kind === 'log'){
+        if (it.gatorItem) drawGatorFloat(it.x, y, it.w, gatorMouthOpen(it));
+        else drawLog(it.x, y, it.w);
+      } else if (lane.kind === 'turtle'){
+        drawTurtleGroup(it.x, y, it.n, turtleState(it));
+      } else {
+        const sp = lane.sprite;
+        if (lane.dir < 0){
+          ctx.save();
+          ctx.translate(Math.round(it.x) + it.w, y);
+          ctx.scale(-1, 1);
+          ctx.drawImage(sp, 0, 0);
+          ctx.restore();
+        } else {
+          ctx.drawImage(sp, Math.round(it.x), y);
+        }
+      }
+      if (it.lady) ctx.drawImage(S.ladySit, Math.round(it.x + it.w / 2 - 8), y);
+    }
+  }
+}
+
+function drawHud(){
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(0, 0, W, CELL);
+  ctx.fillRect(0, rowY(14), W, CELL * 2);
+
+  text('SCORE ' + pad(score, 5), 4, 4, C.ink, 8);
+  text('HI ' + pad(high, 5), W - 4, 4, C.amber, 8, 'right');
+
+  for (let i = 0; i < Math.min(lives, 6); i++){
+    ctx.drawImage(S.frogSit, 4 + i * 13, rowY(14) + 2, 12, 12);
+  }
+  text('LEVEL ' + pad(level, 2), W - 4, rowY(14) + 4, C.green, 8, 'right');
+
+  const frac = Math.max(0, timeLeft / timeLimit);
+  const bx = 8, bw = 190;
+  ctx.fillStyle = '#1a2030';
+  ctx.fillRect(bx, rowY(15) + 4, bw, 8);
+  ctx.fillStyle = frac > 0.4 ? C.green : frac > 0.2 ? C.amber : C.red;
+  ctx.fillRect(bx + bw - Math.round(bw * frac), rowY(15) + 4, Math.round(bw * frac), 8);
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(bx, rowY(15) + 4, bw, 1);
+  text('TIME', W - 4, rowY(15) + 4, C.amber, 8, 'right');
+
+  if (!Sound.enabled) text('MUTE', 4, rowY(15) + 4, C.dim, 8);
+}
+
+function overlay(alpha){
+  ctx.fillStyle = 'rgba(0,0,0,' + alpha + ')';
+  ctx.fillRect(0, 0, W, H);
+}
+
+function draw(){
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(0, 0, W, H);
+
+  drawField();
+  drawLanes();
+  drawHomeContents();
+  if (snake) drawSnake(snake.x - 8, rowY(R_MEDIAN));
+
+  if (state === 'play' && frog.alive){
+    drawFrogSprite(frog.t < 1 ? S.frogHop : S.frogSit, fx(), fy(), frog.dir);
+    if (frog.escort){
+      ctx.drawImage(S.ladySit, Math.round(fx()) - 8, Math.round(fy()) - 13, 16, 16);
+    }
+  } else if (state === 'dying'){
+    const sp = deathKind === 'splash' ? S.splash : S.splat;
+    if (deathT < 0.28 && deathKind !== 'splash'){
+      drawFrogSprite(S.frogSit, fx(), fy(), frog.dir);
+    } else if (((deathT * 12) | 0) % 2 === 0 || deathT > 0.9){
+      ctx.drawImage(sp, Math.round(fx()) - 8, Math.round(fy()) - 8);
+    }
+  }
+
+  for (let i = 0; i < popups.length; i++){
+    const p = popups[i];
+    ctx.globalAlpha = Math.max(0, 1 - p.t / 1.3);
+    text(p.str, p.x, p.y, p.col, 8, 'center');
+    ctx.globalAlpha = 1;
+  }
+
+  drawHud();
+
+  if (state === 'title'){
+    overlay(0.62);
+    text('HOP HOME', W / 2, 74, C.green, 16, 'center');
+    text('FILL ALL FIVE HOMES', W / 2, 100, C.dim, 8, 'center');
+    if (((clock * 2) | 0) % 2 === 0) text('PRESS SPACE', W / 2, 132, C.amber, 8, 'center');
+    text('ARROWS OR WASD TO HOP', W / 2, 160, C.dim, 8, 'center');
+    text('HI ' + pad(high, 5), W / 2, 176, C.cyan, 8, 'center');
+  } else if (state === 'clear'){
+    overlay(0.45);
+    text('LEVEL CLEAR', W / 2, 104, C.green, 12, 'center');
+    text('BONUS 1000', W / 2, 128, C.amber, 8, 'center');
+  } else if (state === 'over'){
+    overlay(0.66);
+    text('GAME OVER', W / 2, 96, C.red, 14, 'center');
+    text('SCORE ' + pad(score, 5), W / 2, 124, C.ink, 8, 'center');
+    text('HI ' + pad(high, 5), W / 2, 140, C.amber, 8, 'center');
+    if (((clock * 2) | 0) % 2 === 0) text('PRESS R', W / 2, 168, C.green, 8, 'center');
+  } else if (paused){
+    overlay(0.55);
+    text('PAUSED', W / 2, 116, C.ink, 12, 'center');
+  }
+}
+
+/* ---------- input ---------- */
+const KEYMAP = {
+  ArrowUp:[0,-1], ArrowDown:[0,1], ArrowLeft:[-1,0], ArrowRight:[1,0],
+  KeyW:[0,-1], KeyS:[0,1], KeyA:[-1,0], KeyD:[1,0]
+};
+
+window.addEventListener('keydown', function(ev){
+  const code = ev.code;
+  if (KEYMAP[code] || code === 'Space' || code === 'Enter'){ ev.preventDefault(); }
+  Sound.unlock();
+
+  if (state === 'title'){
+    if (code === 'Space' || code === 'Enter'){ Sound.coin(); newGame(); }
+    return;
+  }
+  if (state === 'over'){
+    if (code === 'KeyR' || code === 'Space' || code === 'Enter'){ Sound.coin(); newGame(); }
+    return;
+  }
+  if (code === 'KeyP'){ paused = !paused; return; }
+  if (code === 'KeyM'){ Sound.toggle(); return; }
+  if (code === 'KeyR'){ Sound.coin(); newGame(); return; }
+  if (paused) return;
+
+  const d = KEYMAP[code];
+  if (d) tryHop(d[0], d[1]);
+});
+
+window.addEventListener('blur', function(){ if (state === 'play') paused = true; });
+
+let touch = null;
+cv.addEventListener('pointerdown', function(ev){
+  ev.preventDefault();
+  Sound.unlock();
+  const r = cv.getBoundingClientRect();
+  touch = { x: ev.clientX - r.left, y: ev.clientY - r.top, moved: false };
+});
+cv.addEventListener('pointermove', function(ev){
+  if (!touch) return;
+  const r = cv.getBoundingClientRect();
+  const dx = (ev.clientX - r.left) - touch.x;
+  const dy = (ev.clientY - r.top) - touch.y;
+  if (touch.moved || Math.abs(dx) < 18 && Math.abs(dy) < 18) return;
+  touch.moved = true;
+  if (Math.abs(dx) > Math.abs(dy)) tryHop(dx > 0 ? 1 : -1, 0);
+  else tryHop(0, dy > 0 ? 1 : -1);
+});
+cv.addEventListener('pointerup', function(ev){
+  if (!touch) return;
+  const wasTap = !touch.moved;
+  touch = null;
+  if (!wasTap) return;
+  if (state === 'title' || state === 'over'){ Sound.coin(); newGame(); return; }
+  if (state === 'play' && !paused) tryHop(0, -1);
+});
+cv.addEventListener('pointercancel', function(){ touch = null; });
+
+/* ---------- boot ---------- */
+function fit(){
+  /* measure the page furniture so the screen still fills a short frame */
+  let chrome = 128;   /* body padding, the gaps between blocks and the cabinet bezel */
+  document.querySelectorAll('header, .legend, footer').forEach(function(el){ chrome += el.offsetHeight; });
+  const availW = window.innerWidth - 40;
+  const availH = window.innerHeight - chrome;
+  let s = Math.min(availW / W, availH / H);
+  /* half-steps keep the pixel art crisp while still filling the frame */
+  s = s >= 1 ? Math.max(1, Math.floor(s * 2) / 2) : Math.max(0.55, s);
+  cv.style.width = (W * s) + 'px';
+  cv.style.height = (H * s) + 'px';
+}
+window.addEventListener('resize', fit);
+fit();
+
+startLevel();
+state = 'title';
+
+let last = performance.now();
+function loop(now){
+  let dt = (now - last) / 1000;
+  last = now;
+  if (dt > 0.05) dt = 0.05;
+  try {
+    if (!paused) update(dt);
+    draw();
+  } catch (err){
+    console.error('frame error', err);   /* keep the loop alive rather than freezing */
+  }
+  requestAnimationFrame(loop);
+}
+
+function boot(){
+  if (fontReady) return;
+  fontReady = true;
+  fit();                       /* the header is taller once the arcade font lands */
+  last = performance.now();
+  requestAnimationFrame(loop);
+}
+if (document.fonts && document.fonts.load){
+  document.fonts.load('8px "Press Start 2P"').then(boot).catch(boot);
+  setTimeout(function(){ if (!fontReady) boot(); }, 1800);
+} else boot();
+</script>
