@@ -1,4 +1,4 @@
-<title>Lunar Buggy</title>
+<title>Moon Patrol</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Chakra+Petch:wght@400;600;700&display=swap">
 <style>
   :root{
@@ -94,13 +94,13 @@
 </style>
 
 <header>
-  <h1>LUNAR BUGGY</h1>
+  <h1>MOON PATROL</h1>
   <p class="tag"><i></i>Sector 7 supply run<i></i></p>
 </header>
 
 <div class="cabinet">
   <div class="screen-wrap">
-    <canvas id="screen" tabindex="0" aria-label="Lunar Buggy arcade game"></canvas>
+    <canvas id="screen" tabindex="0" aria-label="Moon Patrol arcade game"></canvas>
     <div class="scan"></div>
   </div>
 </div>
@@ -757,7 +757,7 @@ function render(){
   if(state==='title'){
     ctx.fillStyle='rgba(6,7,18,.72)'; ctx.fillRect(0,24,W,H-24);
     ctx.textBaseline='top';
-    ctext('LUNAR BUGGY',56,16,'#fff');
+    ctext('MOON PATROL',56,16,'#fff');
     ctext('SECTOR 7 SUPPLY RUN',80,6,C.hud);
     if((tick>>4)%2===0) ctext('PRESS SPACE OR X TO LAUNCH',108,6,C.hudWarn);
     ctext('ARROWS THROTTLE   SPACE JUMP   X FIRE',128,6,'#8d92c0');

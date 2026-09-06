@@ -125,7 +125,7 @@ const GAMES: GameCard[] = [
 	},
 	{
 		id: "spore-field",
-		title: "Spore Field",
+		title: "Centipede",
 		tagline: "Retro arcade",
 		blurb:
 			"A field of spores, a segmented crawler winding down toward you, and nowhere to hide. Shoot it apart, watch each piece take on a life of its own, and hold out as the field thickens.",
@@ -137,7 +137,7 @@ const GAMES: GameCard[] = [
 	},
 	{
 		id: "lunar-buggy",
-		title: "Lunar Buggy",
+		title: "Moon Patrol",
 		tagline: "Retro arcade",
 		blurb:
 			"Bounce a buggy across the lunar surface, leaping craters and mines while things drop on you from above. Keep your speed up and your wheels under you.",
@@ -173,7 +173,7 @@ const GAMES: GameCard[] = [
 	},
 	{
 		id: "hop-home",
-		title: "Hop Home",
+		title: "Frogger",
 		tagline: "Retro arcade",
 		blurb:
 			"Dodge five lanes of traffic, then ride logs and diving turtles across the river \u2014 fill all five homes before the clock runs out, and watch for the alligator lurking in an empty one.",
@@ -185,7 +185,7 @@ const GAMES: GameCard[] = [
 	},
 	{
 		id: "paper-route",
-		title: "Paper Route",
+		title: "PaperBoy",
 		tagline: "Retro arcade",
 		blurb:
 			"Ride down a scrolling street, land papers in every subscriber's mailbox before they cancel, and dodge the bins, cars, dogs and skaters in your way.",

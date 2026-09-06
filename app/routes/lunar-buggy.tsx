@@ -4,7 +4,7 @@ import { BattleHeader } from "../components/BattleHeader";
 import { HighScoreBoard, InitialsPrompt, useHighScores } from "../components/HighScores";
 
 export function meta({}: Route.MetaArgs) {
-	return [{ title: "Lunar Buggy — Games — ArtDrop Spot" }];
+	return [{ title: "Moon Patrol — Games — ArtDrop Spot" }];
 }
 
 const COLORS = {
@@ -53,7 +53,7 @@ export default function LunarBuggy({}: Route.ComponentProps) {
 					boxSizing: "border-box",
 				}}
 			>
-				<h1 style={{ fontFamily: "'Archivo Black', sans-serif", fontSize: 32, margin: "0 0 8px" }}>Lunar Buggy</h1>
+				<h1 style={{ fontFamily: "'Archivo Black', sans-serif", fontSize: 32, margin: "0 0 8px" }}>Moon Patrol</h1>
 				<p style={{ color: COLORS.textDim, fontSize: 13, margin: "0 0 18px" }}>
 					Click the game once to give it keyboard focus.
 				</p>
@@ -64,7 +64,7 @@ export default function LunarBuggy({}: Route.ComponentProps) {
 
 				<iframe
 					src="/lunar-buggy-game.html"
-					title="Lunar Buggy"
+					title="Moon Patrol"
 					allow="fullscreen"
 					style={{
 						width: "100%",

@@ -4,7 +4,7 @@ import { BattleHeader } from "../components/BattleHeader";
 import { HighScoreBoard, InitialsPrompt, useHighScores } from "../components/HighScores";
 
 export function meta({}: Route.MetaArgs) {
-	return [{ title: "Spore Field — Games — ArtDrop Spot" }];
+	return [{ title: "Centipede — Games — ArtDrop Spot" }];
 }
 
 const COLORS = {
@@ -53,7 +53,7 @@ export default function SporeField({}: Route.ComponentProps) {
 					boxSizing: "border-box",
 				}}
 			>
-				<h1 style={{ fontFamily: "'Archivo Black', sans-serif", fontSize: 32, margin: "0 0 8px" }}>Spore Field</h1>
+				<h1 style={{ fontFamily: "'Archivo Black', sans-serif", fontSize: 32, margin: "0 0 8px" }}>Centipede</h1>
 				<p style={{ color: COLORS.textDim, fontSize: 13, margin: "0 0 18px" }}>
 					Click the game once to give it keyboard focus.
 				</p>
@@ -64,7 +64,7 @@ export default function SporeField({}: Route.ComponentProps) {
 
 				<iframe
 					src="/spore-field-game.html"
-					title="Spore Field"
+					title="Centipede"
 					allow="fullscreen"
 					style={{
 						width: "100%",

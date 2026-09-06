@@ -4,7 +4,7 @@ import { BattleHeader } from "../components/BattleHeader";
 import { HighScoreBoard, InitialsPrompt, useHighScores } from "../components/HighScores";
 
 export function meta({}: Route.MetaArgs) {
-	return [{ title: "Hop Home — Games — ArtDrop Spot" }];
+	return [{ title: "Frogger — Games — ArtDrop Spot" }];
 }
 
 const COLORS = {
@@ -53,7 +53,7 @@ export default function HopHome({}: Route.ComponentProps) {
 					boxSizing: "border-box",
 				}}
 			>
-				<h1 style={{ fontFamily: "'Archivo Black', sans-serif", fontSize: 32, margin: "0 0 8px" }}>Hop Home</h1>
+				<h1 style={{ fontFamily: "'Archivo Black', sans-serif", fontSize: 32, margin: "0 0 8px" }}>Frogger</h1>
 				<p style={{ color: COLORS.textDim, fontSize: 13, margin: "0 0 18px" }}>
 					Click the game once to give it keyboard focus.
 				</p>
@@ -64,7 +64,7 @@ export default function HopHome({}: Route.ComponentProps) {
 
 				<iframe
 					src="/hop-home-game.html"
-					title="Hop Home"
+					title="Frogger"
 					allow="fullscreen"
 					style={{
 						width: "100%",

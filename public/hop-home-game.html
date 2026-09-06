@@ -1,4 +1,4 @@
-<title>Hop Home</title>
+<title>Frogger</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Chakra+Petch:wght@400;600&display=swap">
 <style>
@@ -97,8 +97,8 @@
 </style>
 
 <header>
-  <h1>HOP HOME</h1>
-  <div class="tag"><b>5 homes</b> &middot; five lanes of traffic</div>
+  <h1>FROGGER</h1>
+  <div class="tag">Fan clone &middot; <b>5 homes</b> &middot; five lanes of traffic</div>
 </header>
 
 <div id="cabinet">
@@ -511,8 +511,8 @@ let snake = null;             /* {x, dir, speed} on the median */
 let lady = null;              /* {lane, item, t} riding a log */
 let tickAcc = 0;
 
-try { high = parseInt(localStorage.getItem('hop-home.high') || '0', 10) || 0; } catch(e){ high = 0; }
-function saveHigh(){ try { localStorage.setItem('hop-home.high', String(high)); } catch(e){} }
+try { high = parseInt(localStorage.getItem('frogger.high') || '0', 10) || 0; } catch(e){ high = 0; }
+function saveHigh(){ try { localStorage.setItem('frogger.high', String(high)); } catch(e){} }
 
 const frog = {
   x: 120, y: rowMid(R_BANK), sx: 120, sy: rowMid(R_BANK),
@@ -1046,8 +1046,8 @@ function draw(){
 
   if (state === 'title'){
     overlay(0.62);
-    text('HOP HOME', W / 2, 74, C.green, 16, 'center');
-    text('FILL ALL FIVE HOMES', W / 2, 100, C.dim, 8, 'center');
+    text('FROGGER', W / 2, 74, C.green, 16, 'center');
+    text('HOP HOME FIVE TIMES', W / 2, 100, C.dim, 8, 'center');
     if (((clock * 2) | 0) % 2 === 0) text('PRESS SPACE', W / 2, 132, C.amber, 8, 'center');
     text('ARROWS OR WASD TO HOP', W / 2, 160, C.dim, 8, 'center');
     text('HI ' + pad(high, 5), W / 2, 176, C.cyan, 8, 'center');
