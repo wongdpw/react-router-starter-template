@@ -207,6 +207,18 @@ const GAMES: GameCard[] = [
 		tint: "#FF8A1E",
 		art: <DigArt />,
 	},
+	{
+		id: "asteroids",
+		title: "Asteroids",
+		tagline: "Retro arcade",
+		blurb:
+			"Drift a lone ship through a toroidal debris field, blast rocks into smaller rocks, and outlast wave after wave without running out of ships.",
+		players: "Play alone",
+		modes: "Keyboard · No room needed",
+		href: "/asteroids",
+		tint: "#5EF2FF",
+		art: <AsteroidsArt />,
+	},
 ];
 
 export default function Games({ loaderData }: Route.ComponentProps) {
@@ -672,6 +684,39 @@ function DigArt() {
 			<rect x="88" y="58" width="2" height="2" fill="#ffffff" />
 			{/* pump line between them */}
 			<path d="M71 50h11" stroke="#e6e9f2" strokeWidth="2" strokeLinecap="round" />
+		</svg>
+	);
+}
+
+function AsteroidsArt() {
+	return (
+		<svg width="150" height="92" viewBox="0 0 150 92" fill="none" aria-hidden>
+			<rect x="22" y="8" width="106" height="76" rx="8" fill="#050816" stroke="#2E2E2E" />
+			{/* stars */}
+			<circle cx="34" cy="20" r="1" fill="#c2dcff" />
+			<circle cx="112" cy="16" r="1" fill="#c2dcff" />
+			<circle cx="98" cy="70" r="1" fill="#c2dcff" />
+			<circle cx="40" cy="66" r="1.2" fill="#c2dcff" />
+			<circle cx="60" cy="14" r="1" fill="#c2dcff" />
+			{/* ship */}
+			<path d="M78 40 L64 50 L69 40 L64 30 Z" fill="none" stroke="#5EF2FF" strokeWidth="1.6" strokeLinejoin="round" />
+			{/* rocks */}
+			<path
+				d="M100 24 L108 20 L114 26 L112 33 L104 35 L98 30 Z"
+				fill="none"
+				stroke="#A38BFF"
+				strokeWidth="1.6"
+				strokeLinejoin="round"
+			/>
+			<path
+				d="M46 56 L54 52 L60 57 L58 65 L48 67 L43 61 Z"
+				fill="none"
+				stroke="#A38BFF"
+				strokeWidth="1.6"
+				strokeLinejoin="round"
+			/>
+			{/* bullet */}
+			<circle cx="88" cy="35" r="1.6" fill="#DFFCFF" />
 		</svg>
 	);
 }

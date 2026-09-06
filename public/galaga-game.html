@@ -119,6 +119,13 @@
 
 <footer>Let a Boss Galaga capture your fighter, then shoot it down mid&#8209;dive to fly as a dual fighter.</footer>
 
+<div id="mpBar" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:center;font-size:12px;color:var(--dim)">
+  <span id="mpStatus">2P online:</span>
+  <button id="mpHost" class="chip" style="cursor:pointer;border:1px solid rgba(123,134,176,.4);background:none;color:inherit;font:inherit">Host game</button>
+  <input id="mpCode" placeholder="CODE" maxlength="5" style="width:70px;text-transform:uppercase;background:#0a0e20;border:1px solid rgba(123,134,176,.4);color:var(--ink);border-radius:6px;padding:5px 8px;font-family:inherit">
+  <button id="mpJoin" class="chip" style="cursor:pointer;border:1px solid rgba(123,134,176,.4);background:none;color:inherit;font:inherit">Join</button>
+</div>
+
 <script>
 "use strict";
 const W = 224, H = 288;
@@ -373,6 +380,14 @@ let chalHits = 0, chalSpawned = 0, shake = 0, flash = 0, paused = false;
 const keys = {};
 let touchX = null, touchFire = false;
 
+/* ---------- 2P online (host-authoritative) ---------- */
+// player2 is a co-op helper ship: it can fly and fire, but never dies. That
+// keeps the networking sketch small — full parity (its own lives, being the
+// one who can lose) is future work, not needed to try this out.
+let player2 = null;
+const keys2 = { left:false, right:false, fire:false };
+let net = null; // { ws, seat, isHost, role }
+
 try { high = parseInt(localStorage.getItem('galaga.high') || '0', 10) || 0; } catch(e){ high = 0; }
 function saveHigh(){ try { localStorage.setItem('galaga.high', String(high)); } catch(e){} }
 
@@ -386,10 +401,13 @@ function newPlayer(){
   return { x: W/2, y: H-26, alive:true, dual:false, invuln:1.2, dying:0, captured:false };
 }
 
+function newPlayer2(){ return { x: W/2 + 20, y: H-26, fireCd: 0 }; }
+
 function resetGame(){
   score = 0; lives = 3; stage = 1; nextExtra = 20000;
   enemies = []; bullets = []; ebullets = []; parts = []; rescueShip = null;
   player = newPlayer();
+  player2 = net ? newPlayer2() : null;
   startStage();
 }
 
@@ -487,6 +505,12 @@ function playerFire(){
   } else {
     bullets.push({x:player.x, y:player.y-10});
   }
+  Sound.shoot();
+}
+
+function playerFire2(){
+  if (!player2 || bullets.length >= 5) return;
+  bullets.push({x:player2.x, y:player2.y-10});
   Sound.shoot();
 }
 
@@ -707,6 +731,7 @@ function update(dt){
   formSpread = Math.min(3.2, formSpread + dt*0.12);
 
   updatePlayer(dt);
+  updatePlayer2(dt);
   updateEnemies(dt);
   updateShots(dt);
   updateParticles(dt);
@@ -776,6 +801,17 @@ function updatePlayer(dt){
 
   player.fireCd = (player.fireCd || 0) - dt;
   if ((keys.fire || touchFire) && player.fireCd <= 0){ playerFire(); player.fireCd = 0.17; }
+}
+
+function updatePlayer2(dt){
+  if (!player2) return;
+  let dx = 0;
+  if (keys2.left) dx -= 1;
+  if (keys2.right) dx += 1;
+  player2.x += dx * 108 * dt;
+  player2.x = Math.max(9, Math.min(W - 9, player2.x));
+  player2.fireCd = (player2.fireCd || 0) - dt;
+  if (keys2.fire && player2.fireCd <= 0){ playerFire2(); player2.fireCd = 0.17; }
 }
 
 function updateEnemies(dt){
@@ -963,6 +999,18 @@ function drawPlayer(){
   }
 }
 
+function drawPlayer2(){
+  if (!player2) return;
+  ctx.save();
+  ctx.globalAlpha = 0.85;
+  ctx.fillStyle = C.magenta;
+  ctx.beginPath();
+  ctx.arc(Math.round(player2.x), Math.round(player2.y) + 9, 2, 0, Math.PI*2);
+  ctx.fill();
+  ctx.restore();
+  drawSprite(SPR.ship, player2.x, player2.y, 0);
+}
+
 function drawShots(){
   ctx.fillStyle = C.white;
   for (let i=0;i<bullets.length;i++) ctx.fillRect(Math.round(bullets[i].x), Math.round(bullets[i].y)-4, 1, 8);
@@ -1068,6 +1116,7 @@ function draw(){
     if (rescueShip) drawSprite(SPR.ship, rescueShip.x, rescueShip.y, Math.sin(rescueShip.rot)*0.5);
     if (capSeq) drawSprite(SPR.ship, capSeq.x, capSeq.y, capSeq.rot);
     drawPlayer();
+    drawPlayer2();
     drawShots();
     drawParticles();
     drawOverlays();
@@ -1086,27 +1135,53 @@ function startGame(){
   Sound.unlock(); Sound.coin();
   resetGame();
 }
+// Host-side "start": begins locally and tells the room, which relays
+// 'start' to the guest so both sides reset together. In single-player
+// (no net) this is just startGame().
+function startHostGame(){
+  if (net && net.role === 'host' && net.ws.readyState === 1){
+    net.ws.send(JSON.stringify({ t:'start' }));
+  }
+  startGame();
+}
+// The guest's own keys never touch local sim state (the guest doesn't run
+// update() at all) — they're mirrored into keys2 and sent to the host.
+function localKeys(){ return (net && net.role === 'guest') ? keys2 : keys; }
+function sendInputIfGuest(){
+  if (net && net.role === 'guest' && net.ws.readyState === 1){
+    net.ws.send(JSON.stringify({ t:'input', left:keys2.left, right:keys2.right, fire:keys2.fire }));
+  }
+}
 window.addEventListener('keydown', function(ev){
   const k = ev.key;
-  if (k === 'ArrowLeft' || k === 'a' || k === 'A') keys.left = true;
-  if (k === 'ArrowRight' || k === 'd' || k === 'D') keys.right = true;
+  const lk = localKeys();
+  if (k === 'ArrowLeft' || k === 'a' || k === 'A') lk.left = true;
+  if (k === 'ArrowRight' || k === 'd' || k === 'D') lk.right = true;
   if (k === ' ' || k === 'Spacebar'){
-    keys.fire = true;
-    if (mode === 'title') startGame();
+    lk.fire = true;
+    if (mode === 'title' && !(net && net.role === 'guest')) startHostGame();
     ev.preventDefault();
   }
-  if (k === 'Enter' && mode === 'title') startGame();
+  if (k === 'Enter' && mode === 'title' && !(net && net.role === 'guest')) startHostGame();
   if (k === 'p' || k === 'P'){ if (mode !== 'title') paused = !paused; }
   if (k === 'm' || k === 'M') Sound.toggle();
   if (k === 'ArrowLeft' || k === 'ArrowRight' || k === 'ArrowUp' || k === 'ArrowDown') ev.preventDefault();
+  sendInputIfGuest();
 });
 window.addEventListener('keyup', function(ev){
   const k = ev.key;
-  if (k === 'ArrowLeft' || k === 'a' || k === 'A') keys.left = false;
-  if (k === 'ArrowRight' || k === 'd' || k === 'D') keys.right = false;
-  if (k === ' ' || k === 'Spacebar') keys.fire = false;
+  const lk = localKeys();
+  if (k === 'ArrowLeft' || k === 'a' || k === 'A') lk.left = false;
+  if (k === 'ArrowRight' || k === 'd' || k === 'D') lk.right = false;
+  if (k === ' ' || k === 'Spacebar') lk.fire = false;
+  sendInputIfGuest();
 });
-window.addEventListener('blur', function(){ keys.left = keys.right = keys.fire = false; touchFire = false; touchX = null; });
+window.addEventListener('blur', function(){
+  keys.left = keys.right = keys.fire = false;
+  keys2.left = keys2.right = keys2.fire = false;
+  touchFire = false; touchX = null;
+  sendInputIfGuest();
+});
 
 function canvasX(ev){
   const r = cv.getBoundingClientRect();
@@ -1114,13 +1189,36 @@ function canvasX(ev){
 }
 cv.addEventListener('pointerdown', function(ev){
   cv.setPointerCapture(ev.pointerId);
-  if (mode === 'title'){ startGame(); return; }
+  if (mode === 'title'){
+    if (!(net && net.role === 'guest')) startHostGame();
+    return;
+  }
+  if (net && net.role === 'guest'){
+    const d = canvasX(ev) - (player2 ? player2.x : W/2);
+    keys2.left = d < -2; keys2.right = d > 2; keys2.fire = true;
+    sendInputIfGuest();
+    return;
+  }
   touchX = canvasX(ev); touchFire = true;
   ev.preventDefault();
 });
-cv.addEventListener('pointermove', function(ev){ if (touchFire) touchX = canvasX(ev); });
-cv.addEventListener('pointerup', function(ev){ touchFire = false; touchX = null; });
-cv.addEventListener('pointercancel', function(){ touchFire = false; touchX = null; });
+cv.addEventListener('pointermove', function(ev){
+  if (net && net.role === 'guest' && keys2.fire){
+    const d = canvasX(ev) - (player2 ? player2.x : W/2);
+    keys2.left = d < -2; keys2.right = d > 2;
+    sendInputIfGuest();
+    return;
+  }
+  if (touchFire) touchX = canvasX(ev);
+});
+cv.addEventListener('pointerup', function(ev){
+  touchFire = false; touchX = null;
+  if (net && net.role === 'guest'){ keys2.left = keys2.right = keys2.fire = false; sendInputIfGuest(); }
+});
+cv.addEventListener('pointercancel', function(){
+  touchFire = false; touchX = null;
+  if (net && net.role === 'guest'){ keys2.left = keys2.right = keys2.fire = false; sendInputIfGuest(); }
+});
 
 /* ---------- fit & loop ---------- */
 function fit(){
@@ -1142,13 +1240,131 @@ function loop(now){
   last = now;
   if (dt > 0.05) dt = 0.05;
   try {
-    if (!paused) update(dt);
+    // The guest never simulates — it only renders whatever the last
+    // snapshot from the host wrote into the shared state.
+    if (!net || net.role !== 'guest'){
+      if (!paused) update(dt);
+    }
     draw();
+    if (net && net.role === 'host') maybeBroadcastSnapshot(now);
   } catch (err){
     console.error('frame error', err);   /* keep the loop alive rather than freezing */
   }
   requestAnimationFrame(loop);
 }
+
+/* ---------- 2P online networking ---------- */
+const mpStatus = document.getElementById('mpStatus');
+const mpBar = document.getElementById('mpBar');
+
+function setStatus(s){ mpStatus.textContent = s; }
+
+function randomCode(){
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let out = '';
+  for (let i=0;i<5;i++) out += chars[(Math.random()*chars.length)|0];
+  return out;
+}
+
+function pidFor(){
+  let pid = null;
+  try { pid = localStorage.getItem('galaga.pid'); } catch(e){}
+  if (!pid){
+    pid = 'p' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    try { localStorage.setItem('galaga.pid', pid); } catch(e){}
+  }
+  return pid;
+}
+
+function connect(code){
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  const ws = new WebSocket(proto + '://' + location.host + '/api/galaga/' + code + '/ws?code=' + code + '&pid=' + pidFor());
+  net = { ws:ws, seat:null, role:null, code:code };
+  setStatus('Connecting to ' + code + '…');
+
+  ws.addEventListener('message', function(ev){
+    let msg;
+    try { msg = JSON.parse(ev.data); } catch(e){ return; }
+
+    if (msg.t === 'welcome'){
+      net.seat = msg.seat;
+      applyRoomState(msg.state);
+      return;
+    }
+    if (msg.t === 'state'){ applyRoomState(msg.state); return; }
+    if (msg.t === 'start'){
+      Sound.unlock(); Sound.coin();
+      resetGame();
+      return;
+    }
+    // Host receives the guest's raw input.
+    if (msg.t === 'input' && net.role === 'host'){
+      keys2.left = !!msg.left; keys2.right = !!msg.right; keys2.fire = !!msg.fire;
+      return;
+    }
+    // Guest receives the host's snapshot and just renders it.
+    if (msg.t === 'snapshot' && net.role === 'guest'){
+      applySnapshot(msg.data);
+      return;
+    }
+    if (msg.t === 'gameover'){
+      score = msg.score; mode = 'gameover'; modeT = 0;
+      return;
+    }
+  });
+  ws.addEventListener('close', function(){ setStatus('Disconnected — reload to retry'); });
+  ws.addEventListener('error', function(){ setStatus('Connection error'); });
+}
+
+function applyRoomState(state){
+  net.role = (state.hostSeat === net.seat) ? 'host' : 'guest';
+  const you = state.players[net.seat];
+  const other = state.players[net.seat === 0 ? 1 : 0];
+  if (state.phase === 'lobby'){
+    setStatus('Room ' + state.code + ' — ' + (other ? 'opponent connected' : 'waiting for opponent') +
+               (net.role === 'host' ? ' (you host — press Space/Enter to start once they join)' : ' (waiting for host to start)'));
+  } else {
+    setStatus('Room ' + state.code + ' — ' + net.role);
+  }
+}
+
+function applySnapshot(s){
+  score = s.score; high = s.high; lives = s.lives; stage = s.stage;
+  mode = s.mode; modeT = s.modeT; formT = s.formT;
+  enemies = s.enemies; bullets = s.bullets; ebullets = s.ebullets;
+  player = s.player; player2 = s.player2; rescueShip = s.rescueShip;
+}
+
+let lastSnapshotAt = 0;
+function stripEnemyForWire(e){
+  // escortOf is an object back-reference used only during update(); the
+  // guest never runs update(), so dropping it keeps the payload flat.
+  const copy = {};
+  for (const k in e) if (k !== 'escortOf') copy[k] = e[k];
+  return copy;
+}
+function maybeBroadcastSnapshot(now){
+  if (!net || net.ws.readyState !== 1 || now - lastSnapshotAt < 50) return; // ~20 Hz
+  lastSnapshotAt = now;
+  net.ws.send(JSON.stringify({ t:'snapshot', data:{
+    score:score, high:high, lives:lives, stage:stage, mode:mode, modeT:modeT, formT:formT,
+    enemies: enemies.map(stripEnemyForWire), bullets:bullets, ebullets:ebullets,
+    player:player, player2:player2, rescueShip:rescueShip
+  }}));
+}
+
+document.getElementById('mpHost').addEventListener('click', function(){
+  const code = randomCode();
+  document.getElementById('mpCode').value = code;
+  mpBar.style.display = 'none';
+  connect(code);
+});
+document.getElementById('mpJoin').addEventListener('click', function(){
+  const code = (document.getElementById('mpCode').value || '').trim().toUpperCase();
+  if (!code) return;
+  mpBar.style.display = 'none';
+  connect(code);
+});
 
 function boot(){
   if (fontReady) return;

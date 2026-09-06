@@ -56,6 +56,10 @@
 			{
 				"name": "BLASTER_ROOM",
 				"class_name": "BugBlasterRoom"
+			},
+			{
+				"name": "GALAGA_ROOM",
+				"class_name": "GalagaRoom"
 			}
 		]
 	},
@@ -112,6 +116,12 @@
 			"tag": "v9",
 			"new_sqlite_classes": [
 				"BugBlasterRoom"
+			]
+		},
+		{
+			"tag": "v10",
+			"new_sqlite_classes": [
+				"GalagaRoom"
 			]
 		}
 	]

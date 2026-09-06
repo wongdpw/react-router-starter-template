@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Starfall: Asteroids Arcade</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap">
+<style>
+  :root { --ink: #050816; --panel: #0b1230; --line: #293665; --cyan: #5ef2ff; --violet: #a38bff; --gold: #ffd166; --muted: #8a9abf; }
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; margin: 0; background: var(--ink); }
+  body { color: #eff4ff; font-family: 'Space Mono', ui-monospace, monospace; }
+  button { font: inherit; }
+  .arcade { min-height: 100vh; display: grid; place-items: center; padding: clamp(14px, 3vw, 34px); overflow: hidden; background: radial-gradient(circle at 50% 15%, #151449 0, #090d26 28%, #050816 66%); }
+  .cabinet { width: min(100%, 1040px); }
+  .topline { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 0 4px 14px; }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand-mark { width: 40px; height: 40px; display: grid; place-items: center; border: 1px solid var(--cyan); border-radius: 50%; color: var(--cyan); box-shadow: 0 0 22px #5ef2ff55, inset 0 0 15px #5ef2ff22; font-size: 1.2rem; }
+  .brand p { margin: 0 0 2px; color: var(--muted); font-size: .62rem; letter-spacing: .2em; }
+  .brand h1 { margin: 0; color: #f1f6ff; font-size: clamp(1.5rem, 4vw, 2.35rem); line-height: .9; letter-spacing: -.02em; font-weight: 700; }
+  .brand h1 em { color: var(--cyan); font-style: normal; }
+  .mute { width: 42px; height: 42px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 50%; background: #0b1230aa; color: #b6c7ef; cursor: pointer; }
+  .mute:hover { color: var(--cyan); border-color: var(--cyan); }
+  .mute svg { width: 18px; }
+  .scorebar { display: grid; grid-template-columns: 1.25fr 1.25fr .8fr 1fr; border: 1px solid var(--line); border-bottom: 0; background: linear-gradient(100deg, #0d1538, #090f27); }
+  .scorebar > div { min-width: 0; padding: 10px clamp(9px, 2vw, 18px); border-right: 1px solid var(--line); }
+  .scorebar > div:last-child { border: 0; }
+  .scorebar span { display: block; color: var(--muted); font-size: .63rem; letter-spacing: .17em; }
+  .scorebar strong { display: block; margin-top: 3px; color: #fff; font-size: clamp(.85rem, 2.7vw, 1.2rem); letter-spacing: .1em; }
+  .scorebar .lives { color: var(--gold); letter-spacing: .19em; }
+  .screen { position: relative; overflow: hidden; border: 1px solid #3a4c89; background: #030611; box-shadow: 0 26px 90px #000a, 0 0 50px #4458c833; }
+  .screen::after { position: absolute; inset: 0; pointer-events: none; content: ''; background: linear-gradient(180deg, #ffffff08 50%, #00000012 50%); background-size: 100% 4px; mix-blend-mode: screen; }
+  canvas { display: block; width: 100%; height: auto; aspect-ratio: 48 / 31; touch-action: none; }
+  .overlay { position: absolute; z-index: 2; inset: 0; display: grid; place-items: center; padding: 22px; text-align: center; background: radial-gradient(circle, #10194bdd 0, #050816e8 67%); }
+  .overlay-inner { max-width: 430px; }
+  .overlay .eyebrow { margin: 0 0 11px; color: var(--cyan); font-size: .7rem; letter-spacing: .24em; }
+  .overlay h2 { margin: 0; font-size: clamp(2rem, 6vw, 3.7rem); line-height: .9; letter-spacing: -.02em; }
+  .overlay h2 span { color: var(--violet); }
+  .overlay .description { margin: 15px auto 0; max-width: 360px; color: #b9c5df; font-size: clamp(.94rem, 2vw, 1.05rem); line-height: 1.45; }
+  .primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; margin-top: 24px; min-height: 46px; padding: 0 19px; border: 1px solid var(--cyan); border-radius: 5px; background: var(--cyan); color: #07101f; font-size: .78rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; box-shadow: 4px 4px 0 #2c7b91; cursor: pointer; }
+  .primary:hover { transform: translate(1px, 1px); box-shadow: 3px 3px 0 #2c7b91; }
+  .primary:active { transform: translate(4px,4px); box-shadow: none; }
+  .primary svg { width: 17px; }
+  .underbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 64px; padding: 14px 4px 0; }
+  .hints { display: flex; flex-wrap: wrap; gap: 8px 17px; color: #7183a9; font-size: .67rem; letter-spacing: .06em; }
+  .hints b { color: #cad8fa; font-weight: 700; }
+  .wave { margin: 0; color: #8496bc; font-size: .68rem; letter-spacing: .14em; text-align: right; }
+  .touch-controls { display: none; grid-template-columns: 1fr .7fr 1fr; gap: 10px; width: 100%; padding-top: 16px; }
+  .touch-cluster { display: flex; gap: 8px; }
+  .touch { min-height: 56px; flex: 1; display: grid; place-items: center; border: 1px solid #35487d; border-radius: 10px; background: #101a3de6; color: #d9e3ff; font-size: .68rem; letter-spacing: .08em; touch-action: none; user-select: none; }
+  .touch.fire { border-color: #896ff3; color: #ded6ff; }
+  .touch.thrust { border-color: #4a91a4; color: var(--cyan); }
+  .touch:active { background: #273c70; color: white; }
+  @media (hover: none), (max-width: 740px) { .arcade { align-items: start; } .touch-controls { display: grid; } .underbar { min-height: auto; } .hints { display: none; } .wave { width: 100%; text-align: center; } .screen { box-shadow: 0 18px 60px #000a, 0 0 30px #4458c822; } }
+</style>
+</head>
+<body>
+<main class="arcade">
+  <section class="cabinet" aria-label="Starfall Asteroids arcade game">
+    <header class="topline">
+      <div class="brand">
+        <div class="brand-mark">&#10022;</div>
+        <div>
+          <p>SECTOR 07 &bull; ARCADE SYSTEM</p>
+          <h1>STAR<em>FALL</em></h1>
+        </div>
+      </div>
+      <button class="mute" id="muteBtn" aria-label="Mute sound">
+        <svg id="iconVolOn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+        <svg id="iconVolOff" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>
+      </button>
+    </header>
+    <div class="scorebar" aria-live="polite">
+      <div><span>SCORE</span><strong id="statScore">00000</strong></div>
+      <div><span>HIGH</span><strong id="statHigh">00000</strong></div>
+      <div><span>WAVE</span><strong id="statLevel">1</strong></div>
+      <div><span>SHIPS</span><strong class="lives" id="statLives">&#9670;&#9670;&#9670;</strong></div>
+    </div>
+    <div class="screen">
+      <canvas id="canvas" width="960" height="620" aria-label="Asteroids game board"></canvas>
+      <div class="overlay" id="overlay">
+        <div class="overlay-inner">
+          <p class="eyebrow" id="eyebrow">PILOT ONLINE</p>
+          <h2 id="headline">DEFEND THE <span>LAST LIGHT</span></h2>
+          <p class="description" id="subline">Drift, turn, and survive the debris field.</p>
+          <button class="primary" id="restartBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px"><polyline points="18 15 12 9 6 15"></polyline></svg>
+            <span id="restartLabel">Launch ship</span>
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="underbar">
+      <div class="hints">
+        <span><b>&larr; / A</b> TURN LEFT</span>
+        <span><b>&rarr; / D</b> TURN RIGHT</span>
+        <span><b>&uarr; / W</b> THRUST</span>
+        <span><b>SPACE / X</b> FIRE</span>
+        <span><b>P</b> PAUSE</span>
+      </div>
+      <p class="wave" id="waveLine">TOROIDAL FLIGHT SYSTEM</p>
+    </div>
+    <div class="touch-controls" aria-label="Touch flight controls">
+      <div class="touch-cluster">
+        <button class="touch" id="touchLeft" aria-label="Turn left">&#9664; TURN</button>
+        <button class="touch" id="touchRight" aria-label="Turn right">TURN &#9654;</button>
+      </div>
+      <button class="touch thrust" id="touchThrust">THRUST</button>
+      <button class="touch fire" id="touchFire">FIRE</button>
+    </div>
+  </section>
+</main>
+<script>
+(function () {
+  'use strict';
+  var W = 960, H = 620, TAU = Math.PI * 2, SHIP_RADIUS = 15;
+
+  function wrap(value, bound) { return ((value % bound) + bound) % bound; }
+  function wrappedDelta(a, b, bound) {
+    var delta = a - b;
+    return delta > bound / 2 ? delta - bound : delta < -bound / 2 ? delta + bound : delta;
+  }
+  function torusDistance(a, b) {
+    return Math.hypot(wrappedDelta(a.x, b.x, W), wrappedDelta(a.y, b.y, H));
+  }
+  function rockScore(size) { return [100, 50, 20][2 - size] || 20; }
+  function clampDt(seconds) { return Math.min(0.033, Math.max(0, seconds)); }
+
+  var canvas = document.getElementById('canvas');
+  var ctx = canvas.getContext('2d');
+
+  var nextId = 1;
+  function makeRock(size, level, x, y, heading) {
+    var radius = [17, 29, 46][size];
+    var direction = heading == null ? Math.random() * TAU : heading;
+    var speed = (42 + Math.random() * 40 + level * 7) * (size === 2 ? 0.78 : 1.12);
+    var points = [];
+    for (var i = 0; i < 11; i++) points.push(0.76 + Math.random() * 0.35);
+    return {
+      id: nextId++,
+      x: x == null ? Math.random() * W : x,
+      y: y == null ? Math.random() * H : y,
+      vx: Math.cos(direction) * speed,
+      vy: Math.sin(direction) * speed,
+      radius: radius,
+      size: size,
+      angle: Math.random() * TAU,
+      spin: (Math.random() - 0.5) * 1.6,
+      points: points,
+    };
+  }
+
+  function drawRock(rock) {
+    ctx.save();
+    ctx.translate(rock.x, rock.y);
+    ctx.rotate(rock.angle);
+    ctx.beginPath();
+    rock.points.forEach(function (ratio, i) {
+      var a = (i / rock.points.length) * TAU;
+      var r = rock.radius * ratio;
+      if (i) ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+      else ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+    });
+    ctx.closePath();
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function freshShip() {
+    return { x: W / 2, y: H / 2, vx: 0, vy: 0, angle: -Math.PI / 2, invincible: 2.4, thrust: false };
+  }
+
+  var ship = freshShip();
+  var rocks = [];
+  var bullets = [];
+  var particles = [];
+  var controls = { left: false, right: false, thrust: false, fire: false };
+  var phase = 'ready';
+  var muted = false;
+  var audioCtx = null;
+  var last = 0;
+  var shootCooldown = 0;
+  var waveDelay = 0;
+  var score = 0;
+  var lives = 3;
+  var level = 1;
+  var high = Number(localStorage.getItem('starfall-high-score') || 0);
+
+  var statScore = document.getElementById('statScore');
+  var statHigh = document.getElementById('statHigh');
+  var statLevel = document.getElementById('statLevel');
+  var statLives = document.getElementById('statLives');
+  var overlay = document.getElementById('overlay');
+  var eyebrowEl = document.getElementById('eyebrow');
+  var headlineEl = document.getElementById('headline');
+  var sublineEl = document.getElementById('subline');
+  var restartLabel = document.getElementById('restartLabel');
+  var waveLine = document.getElementById('waveLine');
+  var muteBtn = document.getElementById('muteBtn');
+  var iconVolOn = document.getElementById('iconVolOn');
+  var iconVolOff = document.getElementById('iconVolOff');
+
+  function pad5(n) { return String(n).padStart(5, '0'); }
+
+  function sync() {
+    if (score > high) {
+      high = score;
+      try { localStorage.setItem('starfall-high-score', String(high)); } catch (e) {}
+    }
+    statScore.textContent = pad5(score);
+    statHigh.textContent = pad5(high);
+    statLevel.textContent = String(level);
+    statLives.textContent = '◆'.repeat(Math.max(0, lives));
+  }
+
+  function tone(freq, duration, type, volume, glide) {
+    if (muted) return;
+    var Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    audioCtx = audioCtx || new Ctx();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    var osc = audioCtx.createOscillator();
+    var gain = audioCtx.createGain();
+    osc.type = type || 'square';
+    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+    if (glide) osc.frequency.exponentialRampToValueAtTime(Math.max(30, glide), audioCtx.currentTime + duration);
+    gain.gain.setValueAtTime(volume == null ? 0.035 : volume, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+    osc.connect(gain).connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + duration);
+  }
+
+  function sparks(x, y, count, color, force) {
+    force = force || 120;
+    for (var i = 0; i < count; i++) {
+      var a = Math.random() * TAU;
+      var speed = force * (0.35 + Math.random());
+      var life = 0.35 + Math.random() * 0.45;
+      particles.push({ x: x, y: y, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, life: life, max: life, color: color });
+    }
+  }
+
+  function setPhase(next) {
+    phase = next;
+    updateOverlay();
+    if (next === 'gameover') {
+      try { parent.postMessage({ type: 'arcade:gameover', game: 'asteroids', score: score }, '*'); } catch (e) {}
+    }
+  }
+
+  function updateOverlay() {
+    overlay.style.display = phase === 'playing' ? 'none' : 'grid';
+    if (phase === 'ready') {
+      eyebrowEl.textContent = 'PILOT ONLINE';
+      headlineEl.innerHTML = 'DEFEND THE <span>LAST LIGHT</span>';
+      sublineEl.textContent = 'Drift, turn, and survive the debris field.';
+      restartLabel.textContent = 'Launch ship';
+    } else if (phase === 'paused') {
+      eyebrowEl.textContent = 'SIGNAL HELD';
+      headlineEl.innerHTML = 'SYSTEM <span>PAUSED</span>';
+      sublineEl.textContent = 'The field is holding position.';
+      restartLabel.textContent = 'Resume flight';
+    } else {
+      eyebrowEl.textContent = 'TRANSMISSION ENDED';
+      headlineEl.innerHTML = 'FLIGHT <span>OVER</span>';
+      sublineEl.textContent = 'Final score: ' + pad5(score);
+      restartLabel.textContent = 'Relaunch';
+    }
+  }
+
+  function spawnWave() {
+    var n = 3 + Math.min(7, level);
+    var fresh = [];
+    for (var i = 0; i < n; i++) {
+      var rock = makeRock(2, level);
+      var guard = 0;
+      while (torusDistance(rock, ship) < 180 && guard++ < 20) rock = makeRock(2, level);
+      fresh.push(rock);
+    }
+    rocks = fresh;
+    tone(360 + level * 18, 0.11, 'triangle', 0.025, 640);
+  }
+
+  function resetShip() { ship = freshShip(); }
+
+  function startGame() {
+    score = 0;
+    lives = 3;
+    level = 1;
+    waveDelay = 0;
+    bullets = [];
+    particles = [];
+    resetShip();
+    spawnWave();
+    setPhase('playing');
+    sync();
+    tone(440, 0.11, 'sine', 0.04, 700);
+  }
+
+  function fire() {
+    if (phase !== 'playing' || shootCooldown > 0 || bullets.length > 6) return;
+    bullets.push({
+      x: ship.x + Math.cos(ship.angle) * 19,
+      y: ship.y + Math.sin(ship.angle) * 19,
+      vx: ship.vx + Math.cos(ship.angle) * 460,
+      vy: ship.vy + Math.sin(ship.angle) * 460,
+      life: 0.92,
+    });
+    shootCooldown = 0.18;
+    tone(740, 0.055, 'square', 0.025, 240);
+  }
+
+  function loseShip() {
+    sparks(ship.x, ship.y, 34, '#ffd166', 185);
+    tone(140, 0.28, 'sawtooth', 0.06, 45);
+    lives -= 1;
+    if (lives <= 0) setPhase('gameover');
+    else resetShip();
+    sync();
+  }
+
+  function update(dt) {
+    if (phase !== 'playing') return;
+    shootCooldown = Math.max(0, shootCooldown - dt);
+    ship.invincible = Math.max(0, ship.invincible - dt);
+    ship.thrust = controls.thrust;
+    if (controls.left) ship.angle -= 4.3 * dt;
+    if (controls.right) ship.angle += 4.3 * dt;
+    if (ship.thrust) {
+      ship.vx += Math.cos(ship.angle) * 230 * dt;
+      ship.vy += Math.sin(ship.angle) * 230 * dt;
+      if (Math.random() < 0.42) {
+        particles.push({
+          x: ship.x - Math.cos(ship.angle) * 16,
+          y: ship.y - Math.sin(ship.angle) * 16,
+          vx: ship.vx - Math.cos(ship.angle) * (45 + Math.random() * 45),
+          vy: ship.vy - Math.sin(ship.angle) * (45 + Math.random() * 45),
+          life: 0.18, max: 0.18, color: '#5ef2ff',
+        });
+      }
+    }
+    var speed = Math.hypot(ship.vx, ship.vy);
+    if (speed > 285) { ship.vx *= 285 / speed; ship.vy *= 285 / speed; }
+    ship.vx *= Math.pow(0.985, dt * 60);
+    ship.vy *= Math.pow(0.985, dt * 60);
+    ship.x = wrap(ship.x + ship.vx * dt, W);
+    ship.y = wrap(ship.y + ship.vy * dt, H);
+    if (controls.fire) fire();
+
+    bullets = bullets.filter(function (b) {
+      b.x = wrap(b.x + b.vx * dt, W);
+      b.y = wrap(b.y + b.vy * dt, H);
+      b.life -= dt;
+      return b.life > 0;
+    });
+    rocks.forEach(function (r) {
+      r.x = wrap(r.x + r.vx * dt, W);
+      r.y = wrap(r.y + r.vy * dt, H);
+      r.angle += r.spin * dt;
+    });
+    particles = particles.filter(function (p) {
+      p.x = wrap(p.x + p.vx * dt, W);
+      p.y = wrap(p.y + p.vy * dt, H);
+      p.vx *= 0.96;
+      p.vy *= 0.96;
+      p.life -= dt;
+      return p.life > 0;
+    });
+
+    for (var bi = bullets.length - 1; bi >= 0; bi--) {
+      var b = bullets[bi];
+      var ri = rocks.findIndex(function (r) { return torusDistance(b, r) < r.radius + 3; });
+      if (ri >= 0) {
+        var r = rocks[ri];
+        bullets.splice(bi, 1);
+        rocks.splice(ri, 1);
+        score += rockScore(r.size);
+        sparks(r.x, r.y, 11 + r.size * 5, '#a38bff', 135);
+        tone(r.size === 2 ? 150 : r.size === 1 ? 240 : 360, 0.14, 'sawtooth', 0.035, 80);
+        if (r.size > 0) {
+          var base = Math.atan2(r.vy, r.vx);
+          rocks.push(makeRock(r.size - 1, level, r.x, r.y, base + 1.05));
+          rocks.push(makeRock(r.size - 1, level, r.x, r.y, base - 1.05));
+        }
+        sync();
+      }
+    }
+
+    if (ship.invincible <= 0 && rocks.some(function (r) { return torusDistance(ship, r) < r.radius + SHIP_RADIUS * 0.72; })) loseShip();
+
+    if (rocks.length === 0 && waveDelay <= 0) waveDelay = 1.2;
+    if (waveDelay > 0) {
+      waveDelay -= dt;
+      if (waveDelay <= 0) {
+        level += 1;
+        resetShip();
+        spawnWave();
+        sync();
+      }
+    }
+
+    waveLine.textContent = 'DEBRIS FIELD // ' + rocks.length + ' CONTACT' + (rocks.length === 1 ? '' : 'S');
+  }
+
+  function draw(now) {
+    var dt = clampDt((now - (last || now)) / 1000);
+    last = now;
+    update(dt);
+    if (phase !== 'playing') waveLine.textContent = 'TOROIDAL FLIGHT SYSTEM';
+
+    ctx.clearRect(0, 0, W, H);
+    var glow = ctx.createRadialGradient(W * 0.5, H * 0.47, 0, W * 0.5, H * 0.5, W * 0.64);
+    glow.addColorStop(0, '#101b42');
+    glow.addColorStop(1, '#030611');
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#c2dcff';
+    for (var i = 0; i < 90; i++) {
+      var x = (i * 137.5) % W;
+      var y = (i * 71.3) % H;
+      var a = 0.16 + ((i * 19) % 55) / 100;
+      ctx.globalAlpha = a;
+      ctx.fillRect(x, y, i % 8 === 0 ? 2 : 1, i % 8 === 0 ? 2 : 1);
+    }
+    ctx.globalAlpha = 1;
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#a38bff';
+    ctx.shadowBlur = 9;
+    ctx.shadowColor = '#a38bff';
+    var wrapCopies = rocks
+      .filter(function (r) { return r.x < r.radius; })
+      .map(function (r) { return Object.assign({}, r, { x: r.x + W }); })
+      .concat(rocks.filter(function (r) { return r.x > W - r.radius; }).map(function (r) { return Object.assign({}, r, { x: r.x - W }); }));
+    rocks.concat(wrapCopies).forEach(drawRock);
+
+    ctx.shadowBlur = 8;
+    ctx.shadowColor = '#5ef2ff';
+    ctx.fillStyle = '#dffcff';
+    bullets.forEach(function (b) {
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, 2.3, 0, TAU);
+      ctx.fill();
+    });
+    particles.forEach(function (p) {
+      ctx.globalAlpha = Math.max(0, p.life / p.max);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(p.x - 1.5, p.y - 1.5, 3, 3);
+    });
+    ctx.globalAlpha = 1;
+
+    if (phase !== 'gameover' && (ship.invincible <= 0 || Math.floor(ship.invincible * 10) % 2 === 0)) {
+      ctx.save();
+      ctx.translate(ship.x, ship.y);
+      ctx.rotate(ship.angle);
+      ctx.strokeStyle = '#5ef2ff';
+      ctx.shadowColor = '#5ef2ff';
+      ctx.shadowBlur = 10;
+      if (ship.thrust) {
+        ctx.strokeStyle = '#ffd166';
+        ctx.beginPath();
+        ctx.moveTo(-12, -7);
+        ctx.lineTo(-25 - Math.random() * 8, 0);
+        ctx.lineTo(-12, 7);
+        ctx.stroke();
+        ctx.strokeStyle = '#5ef2ff';
+      }
+      ctx.beginPath();
+      ctx.moveTo(19, 0);
+      ctx.lineTo(-13, -12);
+      ctx.lineTo(-8, 0);
+      ctx.lineTo(-13, 12);
+      ctx.closePath();
+      ctx.stroke();
+      ctx.restore();
+    }
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = '#273663';
+    ctx.strokeRect(0.5, 0.5, W - 1, H - 1);
+
+    requestAnimationFrame(draw);
+  }
+
+  requestAnimationFrame(draw);
+  setInterval(function () { if (phase === 'playing') sync(); }, 600);
+  sync();
+  updateOverlay();
+
+  window.addEventListener('keydown', function (event) {
+    var key = event.key.toLowerCase();
+    if (['arrowleft', 'arrowright', 'arrowup', 'a', 'd', 'w', ' '].indexOf(key) !== -1) event.preventDefault();
+    if (key === 'arrowleft' || key === 'a') controls.left = true;
+    if (key === 'arrowright' || key === 'd') controls.right = true;
+    if (key === 'arrowup' || key === 'w') controls.thrust = true;
+    if (key === ' ' || key === 'x') { controls.fire = true; fire(); }
+    if (key === 'p' && phase === 'playing') setPhase('paused');
+    else if (key === 'p' && phase === 'paused') setPhase('playing');
+    if ((key === 'enter' || key === ' ') && (phase === 'ready' || phase === 'gameover')) startGame();
+  });
+  window.addEventListener('keyup', function (event) {
+    var key = event.key.toLowerCase();
+    if (key === 'arrowleft' || key === 'a') controls.left = false;
+    if (key === 'arrowright' || key === 'd') controls.right = false;
+    if (key === 'arrowup' || key === 'w') controls.thrust = false;
+    if (key === ' ' || key === 'x') controls.fire = false;
+  });
+
+  function hold(key, value) {
+    return function (event) {
+      event.preventDefault();
+      controls[key] = value;
+      if (key === 'fire' && value) fire();
+    };
+  }
+  function bindTouch(el, key) {
+    el.addEventListener('pointerdown', hold(key, true));
+    el.addEventListener('pointerup', hold(key, false));
+    el.addEventListener('pointercancel', hold(key, false));
+  }
+  bindTouch(document.getElementById('touchLeft'), 'left');
+  bindTouch(document.getElementById('touchRight'), 'right');
+  bindTouch(document.getElementById('touchThrust'), 'thrust');
+  bindTouch(document.getElementById('touchFire'), 'fire');
+
+  document.getElementById('restartBtn').addEventListener('click', function () {
+    if (phase === 'paused') setPhase('playing');
+    else startGame();
+  });
+
+  muteBtn.addEventListener('click', function () {
+    muted = !muted;
+    iconVolOn.style.display = muted ? 'none' : 'block';
+    iconVolOff.style.display = muted ? 'block' : 'none';
+    muteBtn.setAttribute('aria-label', muted ? 'Turn sound on' : 'Mute sound');
+  });
+})();
+</script>
+</body>
+</html>

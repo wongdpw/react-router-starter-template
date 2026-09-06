@@ -10,6 +10,7 @@ export { GalaxySwarmRoom } from "./galaxy-room";
 export { BugBlasterRoom } from "./blaster-room";
 export { GameStats } from "./game-stats";
 export { HighScores } from "./high-scores";
+export { GalagaRoom } from "./galaga-room";
 
 declare module "react-router" {
 	export interface AppLoadContext {
@@ -32,6 +33,7 @@ const SQUIGGLE_WS = /^\/api\/squiggle\/([A-Za-z0-9]+)\/ws$/;
 const DOODLE_WS = /^\/api\/doodle\/([A-Za-z0-9]+)\/ws$/;
 const GALAXY_WS = /^\/api\/galaxy\/([A-Za-z0-9]+)\/ws$/;
 const BLASTER_WS = /^\/api\/blaster\/([A-Za-z0-9]+)\/ws$/;
+const GALAGA_WS = /^\/api\/galaga\/([A-Za-z0-9]+)\/ws$/;
 
 export default {
 	fetch(request, env, ctx) {
@@ -46,7 +48,8 @@ export default {
 		const doodle = DOODLE_WS.exec(url.pathname);
 		const galaxy = GALAXY_WS.exec(url.pathname);
 		const blaster = BLASTER_WS.exec(url.pathname);
-		const match = battle ?? guess ?? fake ?? squiggle ?? doodle ?? galaxy ?? blaster;
+		const galaga = GALAGA_WS.exec(url.pathname);
+		const match = battle ?? guess ?? fake ?? squiggle ?? doodle ?? galaxy ?? blaster ?? galaga;
 		if (match) {
 			const code = match[1].toUpperCase();
 			if (!isValidRoomCode(code)) {
@@ -65,7 +68,9 @@ export default {
 								? env.DOODLE_ROOM
 								: galaxy
 									? env.GALAXY_ROOM
-									: env.BLASTER_ROOM;
+									: blaster
+										? env.BLASTER_ROOM
+										: env.GALAGA_ROOM;
 			return ns.get(ns.idFromName(code)).fetch(new Request(url, request));
 		}
 
